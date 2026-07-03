@@ -220,21 +220,40 @@
         // ===================================================================================
         // 🔄 【大項功能 5：F5 重新整理自動登入防失憶線路 + 資安追蹤紀錄】
         window.addEventListener('DOMContentLoaded', async () => {
+            console.log("🚀 [Debug] 頁面載入開始");
+            
+            // 建立強制關閉機制 (5秒防死鎖)
+            const safetyTimer = setTimeout(() => {
+                console.warn("⚠️ [Debug] 啟動強制逾時防禦，遮罩將消失");
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }, 5000);
+
             try {
-                if (!supabaseClient) return;
+                if (!supabaseClient) {
+                    console.error("❌ [Debug] 找不到 supabaseClient");
+                    return;
+                }
+                
+                console.log("🔍 [Debug] 開始嘗試取得 Session...");
                 const { data: { session } } = await supabaseClient.auth.getSession();
+                
                 if (session && session.user) {
+                    console.log("✅ [Debug] 驗證成功，使用者:", session.user.email);
                     currentUserEmail = session.user.email;
-                    await recordOperationLog("F5 重新整理重新載入，系統成功自動恢復連線狀態");
+                    
+                    console.log("⏳ [Debug] 準備執行 enterDashboard...");
                     await enterDashboard(); 
+                    console.log("🎉 [Debug] enterDashboard 執行完畢");
                 } else {
+                    console.log("ℹ️ [Debug] 未登入狀態，顯示登入卡片");
                     document.getElementById('main-dashboard').classList.add('hidden');
                     document.getElementById('login-card').classList.remove('hidden');
                 }
             } catch (e) {
-                console.error("載入失敗", e);
+                console.error("🔥 [Debug] 發生錯誤:", e);
             } finally {
-                // 🌟 核心：系統跑完驗證後，強制將轉圈圈遮罩隱藏
+                console.log("🏁 [Debug] 執行 finally 區塊，關閉遮罩");
+                clearTimeout(safetyTimer);
                 document.getElementById('loading-overlay').classList.add('hidden');
             }
         });
