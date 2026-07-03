@@ -38,7 +38,7 @@
 
     <!-- 2. 主系統控制面板 -->
     <div id="main-dashboard" class="hidden w-full h-screen flex">
-        <!-- 左側導覽列 (升級：樹狀摺疊目錄) -->
+        <!-- 左側導覽列 -->
         <div class="w-64 bg-gray-900 text-white flex flex-col justify-between overflow-y-auto select-none">
             <div class="p-4 space-y-4">
                 <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6 text-indigo-400">🏪 讀取中...</h1>
@@ -49,7 +49,6 @@
                         <div class="flex items-center space-x-2"><span>📋</span><span>門市資訊系統</span></div>
                         <span id="arrow-menu-main-info" class="transform transition-transform duration-200 rotate-180 text-gray-400 text-xs">▼</span>
                     </button>
-                    <!-- 子資料夾投放處 -->
                     <div id="submenu-main-info" class="pl-4 space-y-1 transition-all duration-200"></div>
                 </div>
 
@@ -59,7 +58,6 @@
                         <div class="flex items-center space-x-2"><span>📚</span><span>5大通用唯讀手冊</span></div>
                         <span id="arrow-menu-sops" class="transform transition-transform duration-200 text-gray-400 text-xs">▼</span>
                     </button>
-                    <!-- 手冊子按鈕 -->
                     <div id="submenu-sops" class="hidden pl-4 space-y-1 transition-all duration-200">
                         <button id="menu-btn-sop1" onclick="switchSOP('sop1')" class="sop-nav-btn w-full text-left px-3 py-2 rounded text-gray-400 hover:bg-gray-800 hover:text-white text-xs transition">📄 01_服務流程SOP</button>
                         <button id="menu-btn-sop2" onclick="switchSOP('sop2')" class="sop-nav-btn w-full text-left px-3 py-2 rounded text-gray-400 hover:bg-gray-800 hover:text-white text-xs transition">📄 02_設備故障排除</button>
@@ -71,14 +69,13 @@
             </div>
         </div>
 
-        <!-- 右側內容顯示區 (點擊左邊，右邊單獨秀出) -->
+        <!-- 右側內容顯示區 -->
         <div class="flex-1 bg-gray-50 p-8 overflow-y-auto flex flex-col">
             <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
                 <div>
                     <h2 id="current-tab-title" class="text-2xl font-bold text-gray-800">請選擇表單</h2>
                     <p class="text-sm text-gray-500 mt-1">資料將安全加密同步至總部後台，店長與外人皆無法下載導出。</p>
                 </div>
-                <!-- 獨立頁面儲存按鈕 -->
                 <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">💾 儲存本頁資料</button>
             </div>
 
@@ -126,16 +123,13 @@
             showCustomAlert("忘記密碼提示", "為確保門市資安，請聯繫【總部教育訓練處主管】進行密碼核對與重設。", "💡");
         }
 
-        // 左側大分類目錄之摺疊與展開機制
         window.toggleSidebarSection = function(sectionId) {
             const submenu = document.getElementById(`sub${sectionId}`);
             const arrow = document.getElementById(`arrow-${sectionId}`);
             if(submenu.classList.contains("hidden")) {
-                submenu.classList.remove("hidden");
-                arrow.style.transform = "rotate(180deg)";
+                submenu.classList.remove("hidden"); arrow.style.transform = "rotate(180deg)";
             } else {
-                submenu.classList.add("hidden");
-                arrow.style.transform = "rotate(0deg)";
+                submenu.classList.add("hidden"); arrow.style.transform = "rotate(0deg)";
             }
         }
 
@@ -162,7 +156,6 @@
             document.getElementById('main-dashboard').classList.remove('hidden');
             document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
             
-            // 渲染左側門市資訊資料夾內之子選單
             const submenuContainer = document.getElementById("submenu-main-info");
             submenuContainer.innerHTML = "";
             window.FORMS_CONFIG.forEach((form) => {
@@ -174,7 +167,6 @@
                 if (data) {
                     document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
                     globalDataStore = data.content ? JSON.parse(data.content) : {};
-                    // 預設高亮並單獨秀出第一個表單
                     renderFormEngine(window.FORMS_CONFIG[0].id);
                 }
             } catch(e) {
@@ -183,13 +175,12 @@
             }
         }
 
-        // 🤖 自動渲染引擎：點擊左側子選單，右側單獨產出對應表格
+        // 🤖 修正核心：一次性完美渲染，絕不中途摧毀格子狀態
         function renderFormEngine(formId) {
             currentActiveFormId = formId;
             document.getElementById('panel-pdf').classList.add('hidden');
             document.getElementById('dynamic-form-render-engine').classList.remove('hidden');
             
-            // 清理所有左側選單高亮，單獨高亮目前點擊項
             document.querySelectorAll(".form-nav-btn, .sop-nav-btn").forEach(el => el.className = el.className.replace("bg-indigo-600 text-white font-medium", "text-gray-400 hover:bg-gray-800 hover:text-white"));
             const activeBtn = document.getElementById(`menu-btn-${formId}`);
             if(activeBtn) activeBtn.className = activeBtn.className.replace("text-gray-400 hover:bg-gray-800 hover:text-white", "bg-indigo-600 text-white font-medium");
@@ -200,20 +191,29 @@
             engineContainer.innerHTML = "";
             const formData = globalDataStore[formId] || {};
 
-            // 類型一：區塊式填空題 (里長資料)
+            // 1. 修正：區塊式填空題 (里長資料) - 先全面收集 HTML
             if(config.type === "grid_sections") {
+                let fullHtml = "";
                 config.sections.forEach((sec) => {
                     let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4"><div class="font-bold text-gray-800 border-b border-gray-100 pb-2 text-md"><span>${sec.name}</span></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
                     sec.fields.forEach(f => {
-                        if(f.fullWidth) html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
-                        else html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-field="${f.id}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
+                        if(f.fullWidth) html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-form="${config.id}" data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
+                        else html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-form="${config.id}" data-field="${f.id}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
                     });
-                    html += `</div></div>`; engineContainer.innerHTML += html;
-                    sec.fields.forEach(f => { if(formData[f.id]) engineContainer.querySelector(`[data-field="${f.id}"]`).value = formData[f.id]; });
+                    html += `</div></div>`;
+                    fullHtml += html;
+                });
+                engineContainer.innerHTML = fullHtml; // 一次性渲染
+                
+                // 渲染完整完成後，再統一填入數值，絕不遺失狀態
+                config.sections.forEach((sec) => {
+                    sec.fields.forEach(f => {
+                        if(formData[f.id]) engineContainer.querySelector(`[data-form="${config.id}"][data-field="${f.id}"]`).value = formData[f.id];
+                    });
                 });
             }
 
-            // 類型二：自由增減列數的動態表 (通訊錄與人事資料)
+            // 2. 動態普通表格
             if(config.type === "dynamic_table") {
                 let html = `<div class="flex justify-end mb-3"><button onclick="addDynamicRow('${formId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded shadow cursor-pointer">➕ 新增資料列</button></div><div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 text-xs text-left whitespace-nowrap"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
                 config.headers.forEach(h => html += `<th class="px-3 py-3">${h}</th>`);
@@ -226,8 +226,9 @@
                 } else { rowsData.forEach(rData => addDynamicRow(formId, rData)); }
             }
 
-            // 類型三：保全專屬雙表格結構 (預留 6 行空白格 + 支援手動加減)
+            // 3. 修正：保先雙卡結構 - 同樣改為一次性渲染，防禦地雷
             if(config.type === "security_group") {
+                let fullHtml = "";
                 config.tables.forEach(t => {
                     let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
                         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-3">
@@ -238,11 +239,13 @@
                             </div>
                         </div>
                         <table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-600"><tr><th class="px-4 py-2 w-20">序號</th><th class="px-4 py-2">持卡人</th><th class="px-4 py-2">電話/手機</th><th class="px-4 py-2 w-16 text-center">操作</th></tr></thead><tbody id="security-tbody-${t.id}" class="divide-y divide-gray-200"></tbody></table></div>`;
-                    engineContainer.innerHTML += html;
-                    
+                    fullHtml += html;
+                });
+                engineContainer.innerHTML = fullHtml; // 一次性渲染
+                
+                config.tables.forEach(t => {
                     let cardNo = formData[`${t.id}_no`] || "";
                     document.getElementById(`card-no-${t.id}`).value = cardNo;
-                    
                     let sRows = formData[`${t.id}_rows`] || [];
                     if(sRows.length === 0) {
                         for(let i=1; i<=t.defaultRows; i++) { addSecurityRow(t.id); }
@@ -286,7 +289,7 @@
             Array.from(tbody.children).forEach((tr, idx) => { tr.querySelector(".sec-idx").innerText = idx + 1; });
         }
 
-        // 💾 儲存本頁資料：單獨打包當前作用表單數據
+        // 儲存按鈕
         document.getElementById('btn-save').addEventListener('click', async () => {
             const btn = document.getElementById('btn-save'); btn.innerText = "⏳ 正在同步本頁...";
             const config = window.FORMS_CONFIG.find(f => f.id === currentActiveFormId);
