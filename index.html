@@ -86,8 +86,8 @@
     <!-- 3. 前端核心邏輯控制 -->
     <script>
         // 注意：這裡的密鑰稍後部署到 Vercel 時會被安全代換，現在先用前端變數接收
-        const SUPABASE_URL = window.env?.SUPABASE_URL || "請在此處暫時貼上你的Project URL";
-        const SUPABASE_ANON_KEY = window.env?.SUPABASE_ANON_KEY || "請在此處暫時貼上你的anon public金鑰";
+        const SUPABASE_URL = window.env?.SUPABASE_URL || "https://ysvgdktjgzrgidqzlcgk.supabase.co";
+        const SUPABASE_ANON_KEY = window.env?.SUPABASE_ANON_KEY || "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let quill;
