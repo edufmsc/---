@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>門市經理數位管理系統</title>
+    <!-- 引入美化介面的 Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 引入 Supabase 官方最新版核心套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 引入網頁版 Word 編輯器 (Quill) -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
+
+    <!-- 1. 登入區塊 -->
+    <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">門市經理手冊系統</h2>
+            <p class="text-gray-500 mt-2">請輸入門市公務帳號密碼登入</p>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">門市信箱 (Email)</label>
+                <input type="email" id="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="store01@company.com">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">登入密碼 (Password)</label>
+                <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="••••••••">
+            </div>
+            <button id="btn-login" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">登入系統</button>
+            <p id="login-error" class="text-red-500 text-sm text-center hidden">帳號或密碼錯誤，請重新輸入</p>
+        </div>
+    </div>
+
+    <!-- 2. 主系統控制面板 (登入後才會顯示) -->
+    <div id="main-dashboard" class="hidden w-full h-screen flex">
+        <!-- 左側導覽列 -->
+        <div class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+            <div class="p-5">
+                <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6">讀取中...</h1>
+                <nav class="space-y-2">
+                    <button onclick="switchTab('home')" class="tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium">🏠 店務紀錄填報</button>
+                    <div class="text-xs text-gray-400 font-bold px-4 pt-4 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
+                    <button onclick="switchTab('sop1')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 01_服務流程SOP</button>
+                    <button onclick="switchTab('sop2')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 02_設備故障排除</button>
+                    <button onclick="switchTab('sop3')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 03_人事考勤管理</button>
+                    <button onclick="switchTab('sop4')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 04_清潔衛生標準</button>
+                    <button onclick="switchTab('sop5')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 05_緊急事件處理</button>
+                </nav>
+            </div>
+            <div class="p-5 border-t border-gray-800">
+                <button id="btn-logout" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm cursor-pointer">登出系統</button>
+            </div>
+        </div>
+
+        <!-- 右側內容顯示區 -->
+        <div class="flex-1 bg-gray-50 p-8 overflow-y-auto">
+            <!-- A. 店務填報分頁 -->
+            <div id="tab-home" class="tab-content space-y-4">
+                <div class="flex justify-between items-center border-b border-gray-200 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">店務日誌與範本修改</h2>
+                        <p class="text-sm text-gray-500 mt-1">您在此處輸入的內容會即時存檔，其他門市絕對無法檢視。</p>
+                    </div>
+                    <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow font-medium cursor-pointer">💾 儲存今日紀錄</button>
+                </div>
+                <!-- Word 編輯器容器 -->
+                <div class="bg-white rounded-lg shadow border border-gray-200">
+                    <div id="editor" class="h-[60vh] text-lg"></div>
+                </div>
+            </div>
+
+            <!-- B. PDF 手冊檢視分頁 (利用 iframe 嵌入技術，點擊左邊按鈕動態切換網址) -->
+            <div id="tab-pdf" class="tab-content hidden h-full flex flex-col">
+                <h2 id="pdf-title" class="text-2xl font-bold text-gray-800 mb-4">手冊檢視</h2>
+                <div class="flex-1 bg-white border border-gray-300 rounded shadow">
+                    <!-- 這裡未來可以直接放入你放在公司 5TB 雲端硬碟的 PDF 唯讀分享網址 -->
+                    <iframe id="pdf-viewer" class="w-full h-full rounded" src="" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 前端核心邏輯控制 -->
+    <script>
+        // 注意：這裡的密鑰稍後部署到 Vercel 時會被安全代換，現在先用前端變數接收
+        const SUPABASE_URL = window.env?.SUPABASE_URL || "請在此處暫時貼上你的Project URL";
+        const SUPABASE_ANON_KEY = window.env?.SUPABASE_ANON_KEY || "請在此處暫時貼上你的anon public金鑰";
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let quill;
+        let currentUserEmail = "";
+
+        // 初始化 Word 編輯器
+        document.addEventListener("DOMContentLoaded", () => {
+            quill = new Quill('#editor', { theme: 'snow', placeholder: '在此處輸入或修改您的門市紀錄...' });
+        });
+
+        // 登入按鈕事件
+        document.getElementById('btn-login').addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorTxt = document.getElementById('login-error');
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                errorTxt.classList.remove('hidden');
+            } else {
+                currentUserEmail = data.user.email;
+                enterDashboard();
+            }
+        });
+
+        // 登入成功後載入儀表板
+        async function enterDashboard() {
+            document.body.className = "bg-gray-50 min-h-screen font-sans";
+            document.getElementById('login-card').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+
+            // 去後台資料表「店經理手冊-帳密」撈取專屬這家店的資料
+            const { data, error } = await supabase
+                .from('店經理手冊-帳密')
+                .select('*')
+                .eq('manager_email', currentUserEmail)
+                .single();
+
+            if (data) {
+                document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
+                // 將資料庫裡的 Word 內容塞進編輯器
+                if (data.content) {
+                    quill.clipboard.dangerouslyPasteHTML(data.content);
+                }
+            } else {
+                document.getElementById('welcome-title').innerText = `🏪 未知門市`;
+            }
+        }
+
+        // 儲存按鈕事件
+        document.getElementById('btn-save').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "⏳ 正在存檔...";
+            const htmlContent = quill.getSemanticHTML(); // 抓取帶有排版的 HTML 內容
+
+            // 透過 RLS 規則安全地更新屬於自己的那一列
+            const { error } = await supabase
+                .from('店經理手冊-帳密')
+                .update({ content: htmlContent })
+                .eq('manager_email', currentUserEmail);
+
+            if (error) {
+                alert("儲存失敗，請檢查網路連線！");
+                btn.innerText = "💾 儲存今日紀錄";
+            } else {
+                alert("🎉 存檔成功！資料已安全同步至總部後台。");
+                btn.innerText = "💾 儲存今日紀錄";
+            }
+        });
+
+        // 登出事件
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.reload();
+        });
+
+        // 前台頁面動態切換邏輯
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.className = "tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800");
+
+            if (tabName === 'home') {
+                document.getElementById('tab-home').classList.remove('hidden');
+                event.target.className = "tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium";
+            } else {
+                document.getElementById('tab-pdf').classList.remove('hidden');
+                event.target.className = "tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium";
+                
+                const pdfViewer = document.getElementById('pdf-viewer');
+                const pdfTitle = document.getElementById('pdf-title');
+                
+                // 這裡可以換成你放在 Google 5TB 雲端硬碟手冊的「唯讀分享連結」
+                // 提示：Google Drive 的預覽網址格式需為 https://drive.google.com/file/d/你的檔案ID/preview
+                if (tabName === 'sop1') { pdfTitle.innerText = "📄 01_服務流程SOP"; pdfViewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
+                if (tabName === 'sop2') { pdfTitle.innerText = "📄 02_設備故障排除"; pdfViewer.src = ""; }
+                if (tabName === 'sop3') { pdfTitle.innerText = "📄 03_人事考勤管理"; pdfViewer.src = ""; }
+                if (tabName === 'sop4') { pdfTitle.innerText = "📄 04_清潔衛生標準"; pdfViewer.src = ""; }
+                if (tabName === 'sop5') { pdfTitle.innerText = "📄 05_緊急事件處理"; pdfViewer.src = ""; }
+            }
+        }
+    </script>
+</body>
+</html>
