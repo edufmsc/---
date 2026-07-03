@@ -155,7 +155,7 @@
                 else { 
                     currentUserEmail = data.user.email;
                     // 👑 偵測是否為最高管理員 Email
-                    isAdminMode = (currentUserEmail === 'admin@company.com');
+                    isAdminMode = (currentUserEmail === 'edu.fmsc@gmail.com');
                     enterDashboard(); 
                 }
             } catch (err) { showCustomAlert("後台連線失敗！", err.message, "🚨"); resetLoginButton(); }
