@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>門市經理數位管理系統</title>
-    <!-- 引入美化介面的 Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- 引入 Supabase 官方最新版核心套件 -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 🔥 核心關鍵：在此處引入你剛剛建立的獨立內容設定檔 -->
+    <script src="forms-config.js"></script>
+    <style>
+        .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+        input, textarea, select { user-select: text !important; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans no-select" oncontextmenu="return false;">
 
     <!-- 1. 登入區塊 -->
     <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
@@ -20,37 +24,29 @@
         <div class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">門市信箱 (Email)</label>
-                <input type="email" id="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="store01@company.com">
+                <input type="email" id="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">登入密碼 (Password)</label>
-                <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="••••••••">
+                <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
-            
-            <!-- 1.2 優化：忘記密碼選項 -->
-            <div class="flex justify-end">
-                <button onclick="handleForgotPassword()" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">忘記密碼？</button>
-            </div>
-
-            <button id="btn-login" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">登入系統</button>
+            <button id="btn-login" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer">登入系統</button>
         </div>
     </div>
 
-    <!-- 2. 主系統控制面板 (登入後才會顯示) -->
+    <!-- 2. 主系統控制面板 -->
     <div id="main-dashboard" class="hidden w-full h-screen flex">
-        <!-- 左側導覽列 -->
-        <div class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+        <!-- 左側導覽列 (由 JS 依據設定檔自動畫出) -->
+        <div class="w-64 bg-gray-900 text-white flex flex-col justify-between overflow-y-auto">
             <div class="p-5">
-                <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6">讀取中...</h1>
-                <nav class="space-y-2">
-                    <!-- 2.1 優化：原店務日誌修改，更名為線上Excel填報 -->
-                    <button onclick="switchTab('home')" class="tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium">📊 門市專屬 Excel 填報</button>
-                    <div class="text-xs text-gray-400 font-bold px-4 pt-4 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
-                    <button onclick="switchTab('sop1')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 01_服務流程SOP</button>
-                    <button onclick="switchTab('sop2')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 02_設備故障排除</button>
-                    <button onclick="switchTab('sop3')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 03_人事考勤管理</button>
-                    <button onclick="switchTab('sop4')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 04_清潔衛生標準</button>
-                    <button onclick="switchTab('sop5')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 05_緊急事件處理</button>
+                <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6">🏪 讀取中...</h1>
+                <nav class="space-y-1">
+                    <div class="text-xs text-gray-400 font-bold px-3 pt-2 pb-1 uppercase tracking-wider">📋 門市日常填報表單</div>
+                    <div id="sidebar-menu-container"></div> <!-- 密技：動態按鈕投放處 -->
+                    
+                    <div class="text-xs text-gray-400 font-bold px-3 pt-4 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
+                    <button onclick="switchSOP('sop1')" class="tab-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 01_服務流程SOP</button>
+                    <button onclick="switchSOP('sop2')" class="tab-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 02_設備故障排除</button>
                 </nav>
             </div>
             <div class="p-5 border-t border-gray-800">
@@ -59,115 +55,241 @@
         </div>
 
         <!-- 右側內容顯示區 -->
-        <div class="flex-1 bg-gray-50 p-8 overflow-y-auto">
-            <!-- 2.1 優化：店務 Excel 填報分頁 (內嵌該店專屬 Google Sheet) -->
-            <div id="tab-home" class="tab-content h-full flex flex-col space-y-4">
+        <div class="flex-1 bg-gray-50 p-8 overflow-y-auto flex flex-col">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800">門市專屬試算表填報</h2>
-                    <p class="text-sm text-gray-500 mt-1">您在此處修改的內容會自動同步儲存，其他門市無法檢視與修改。</p>
+                    <h2 id="current-tab-title" class="text-2xl font-bold text-gray-800">請選擇表單</h2>
+                    <p class="text-sm text-gray-500 mt-1">資料將安全加密同步至總部後台，店長與外人皆無法下載導出。</p>
                 </div>
-                <div class="flex-1 bg-white border border-gray-300 rounded-lg shadow">
-                    <!-- 動態載入該店專屬 Excel -->
-                    <iframe id="excel-viewer" class="w-full h-full rounded-lg" src="" frameborder="0"></iframe>
-                </div>
+                <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">💾 儲存本頁資料</button>
             </div>
 
-            <!-- B. PDF 手冊檢視分頁 -->
-            <div id="tab-pdf" class="tab-content hidden h-full flex flex-col">
-                <h2 id="pdf-title" class="text-2xl font-bold text-gray-800 mb-4">手冊檢視</h2>
-                <div class="flex-1 bg-white border border-gray-300 rounded shadow">
-                    <iframe id="pdf-viewer" class="w-full h-full rounded" src="" frameborder="0"></iframe>
-                </div>
+            <!-- 動態表單主容器 -->
+            <div id="dynamic-form-render-engine" class="flex-1"></div>
+            <!-- PDF 唯讀手冊顯示容器 -->
+            <div id="panel-pdf" class="tab-panel hidden h-[70vh] bg-white border border-gray-300 rounded-xl shadow-sm">
+                <iframe id="pdf-viewer" class="w-full h-full rounded-xl" src="" frameborder="0"></iframe>
             </div>
         </div>
     </div>
 
-    <!-- 3. 前端核心邏輯控制 -->
     <script>
-        // ⚠️ 記得在這裡貼上你的 Supabase 亂碼金鑰（保留雙引號）
-        const SUPABASE_URL = "https://ysvgdktjgzrgidqzlcgk.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
-        
+        // ⚠️ 請記得貼上你的 Supabase 密鑰
+        const SUPABASE_URL = "在此處貼上你的Project URL";
+        const SUPABASE_ANON_KEY = "在此處貼上你的anon public金鑰";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         let currentUserEmail = "";
+        let currentActiveFormId = "";
+        let globalDataStore = {}; 
 
-        // 1.2 優化：忘記密碼暫代機制
-        function handleForgotPassword() {
-            alert("💡 忘記密碼提示：\n\n為確保門市資安，請聯繫【總部教育訓練主管】進行密碼重設與身份核對。");
-        }
-
-        // 登入按鈕事件
+        // 登入事件
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                // 1.1 優化：帳密錯誤跳出視窗提醒
-                alert("❌ 登入失敗！\n您輸入的帳號或密碼有誤，請重新檢查大小寫。");
-            } else {
-                currentUserEmail = data.user.email;
-                enterDashboard();
-            }
+            if (error) { alert("❌ 帳號密碼有誤！"); } 
+            else { currentUserEmail = data.user.email; enterDashboard(); }
         });
 
-        // 登入成功後載入儀表板
         async function enterDashboard() {
-            document.body.className = "bg-gray-50 min-h-screen font-sans";
             document.getElementById('login-card').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
+            
+            // 1. 自動建置左側選單
+            const menuContainer = document.getElementById("sidebar-menu-container");
+            menuContainer.innerHTML = "";
+            window.FORMS_CONFIG.forEach((form, idx) => {
+                menuContainer.innerHTML += `<button id="menu-btn-${form.id}" onclick="renderFormEngine('${form.id}')" class="menu-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm flex items-center space-x-2"><span>${form.icon}</span><span>${form.title}</span></button>`;
+            });
 
-            // 自動撈取對應表格資料
-            const { data, error } = await supabaseClient
-                .from('店經理手冊-帳密')
-                .select('*')
-                .eq('manager_email', currentUserEmail)
-                .single();
-
+            // 2. 從後台抓資料
+            const { data } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
             if (data) {
                 document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
-                
-                // 2.1 優化：動態將該店專屬的 Excel 網址塞進內嵌視窗
-                if (data.excel_url) {
-                    document.getElementById('excel-viewer').src = data.excel_url;
-                } else {
-                    alert("總部尚未配置您的專屬 Excel 試算表，請聯繫教育訓練處。");
-                }
-            } else {
-                document.getElementById('welcome-title').innerText = `🏪 未知門市`;
+                globalDataStore = data.content ? JSON.parse(data.content) : {};
+                // 預設打開第一個表單
+                renderFormEngine(window.FORMS_CONFIG[0].id);
             }
         }
 
-        // 登出事件
-        document.getElementById('btn-logout').addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            window.location.reload();
+        // 🤖 終極核心：自動影印機（表單渲染引擎）
+        function renderFormEngine(formId) {
+            currentActiveFormId = formId;
+            document.getElementById('panel-pdf').classList.add('hidden');
+            document.getElementById('dynamic-form-render-engine').classList.remove('hidden');
+            
+            // 切換左側高亮顏色
+            document.querySelectorAll(".menu-nav-btn, .tab-btn").forEach(el => el.className = el.className.replace("bg-indigo-600 text-white font-medium", "text-gray-300 hover:bg-gray-800"));
+            const activeBtn = document.getElementById(`menu-btn-${formId}`);
+            if(activeBtn) activeBtn.className = activeBtn.className.replace("text-gray-300 hover:bg-gray-800", "bg-indigo-600 text-white font-medium");
+
+            const config = window.FORMS_CONFIG.find(f => f.id === formId);
+            document.getElementById("current-tab-title").innerText = config.title;
+            
+            const engineContainer = document.getElementById("dynamic-form-render-engine");
+            engineContainer.innerHTML = ""; // 清空舊畫面數據
+            
+            const formData = globalDataStore[formId] || {};
+
+            // 類型 A：分區塊格子填空[cite: 1]
+            if(config.type === "grid_sections") {
+                config.sections.forEach((sec, sIdx) => {
+                    let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
+                        <div class="font-bold text-gray-800 border-b border-gray-100 pb-2 text-md flex items-center space-x-1"><span>${sec.name}</span></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                    sec.fields.forEach(f => {
+                        let val = formData[f.id] || "";
+                        if(f.fullWidth) {
+                            html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white">${val}</textarea></div>`;
+                        } else {
+                            html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-field="${f.id}" value="${val}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
+                        }
+                    });
+                    html += `</div></div>`;
+                    engineContainer.innerHTML += html;
+                });
+            }
+
+            // 類型 B：固定 Excel 表格[cite: 2]
+            if(config.type === "fixed_table") {
+                let html = `<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"><table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
+                config.headers.forEach(h => html += `<th class="px-4 py-3">${h}</th>`);
+                html += `</tr></thead><tbody class="divide-y divide-gray-200">`;
+                config.rows.forEach((rowName, rIdx) => {
+                    html += `<tr class="hover:bg-gray-50"><td class="px-4 py-2 font-medium text-gray-700 bg-gray-50">${rowName}</td>`;
+                    for(let cIdx=1; cIdx<config.headers.length; cIdx++) {
+                        let key = `row_${rIdx}_cell_${cIdx}`;
+                        let val = formData[key] !== undefined ? formData[key] : (config.defaultValues?.[key] || "");
+                        html += `<td class="px-2 py-1"><input type="text" data-cell="${key}" value="${val}" class="dynamic-table-cell w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td>`;
+                    }
+                    html += `</tr>`;
+                });
+                html += `</tbody></table></div>`;
+                engineContainer.innerHTML += html;
+            }
+
+            // 類型 C：自由增減列數的動態表格[cite: 3]
+            if(config.type === "dynamic_table") {
+                let html = `<div class="flex justify-end mb-3"><button onclick="addDynamicRow('${formId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded shadow cursor-pointer">➕ 新增資料列</button></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 text-xs text-left whitespace-nowrap"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
+                config.headers.forEach(h => html += `<th class="px-2 py-3">${h}</th>`);
+                html += `<th class="px-2 py-3 w-12">操作</th></tr></thead><tbody id="dynamic-tbody" class="divide-y divide-gray-200"></tbody></table></div>`;
+                engineContainer.innerHTML += html;
+                
+                // 還原多列數據
+                const rowsData = formData.rows || [];
+                if(rowsData.length === 0) { addDynamicRow(formId); } else { rowsData.forEach(rData => addDynamicRow(formId, rData)); }
+            }
+
+            // 類型 D：保全雙卡結構[cite: 4]
+            if(config.type === "security_group") {
+                config.tables.forEach(t => {
+                    let cardNo = formData[`${t.id}_no`] || "";
+                    let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-3">
+                            <span class="font-bold text-gray-800">${t.name}</span>
+                            <div class="text-sm flex items-center space-x-1"><span class="text-gray-600">${t.cardLabel}：</span><input type="text" id="card-no-${t.id}" value="${cardNo}" class="px-3 py-1 bg-gray-50 border border-gray-300 rounded shadow-sm w-48"></div>
+                        </div>
+                        <table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-600"><tr><th class="px-4 py-2 w-20">序號</th><th class="px-4 py-2">持卡人</th><th class="px-4 py-2">電話/手機</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+                    for(let i=1; i<=t.rowCount; i++) {
+                        let uVal = formData[`${t.id}_u_${i}`] || "";
+                        let pVal = formData[`${t.id}_p_${i}`] || "";
+                        html += `<tr><td class="px-4 py-2 text-gray-500 font-medium bg-gray-50">${i}</td>
+                        <td class="px-2 py-1"><input type="text" id="${t.id}_u_${i}" value="${uVal}" class="w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td>
+                        <td class="px-2 py-1"><input type="text" id="${t.id}_p_${i}" value="${pVal}" class="w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td></tr>`;
+                    }
+                    html += `</tbody></table></div>`;
+                    engineContainer.innerHTML += html;
+                });
+            }
+        }
+
+        // 動態增減資料列小幫手[cite: 3]
+        function addDynamicRow(formId, rData = {}) {
+            const tbody = document.getElementById("dynamic-tbody");
+            const config = window.FORMS_CONFIG.find(f => f.id === formId);
+            const tr = document.createElement("tr");
+            tr.className = "dynamic-table-row hover:bg-gray-50";
+            
+            config.fields.forEach(f => {
+                let val = rData[f.key] || "";
+                let td = document.createElement("td");
+                td.className = "p-1";
+                if(f.type === "select") {
+                    let optHtml = `<select data-key="${f.key}" class="p-1 bg-gray-50 border rounded">`;
+                    f.options.forEach(o => optHtml += `<option value="${o}" ${val===o?'selected':''}>□ ${o}</option>`);
+                    optHtml += `</select>`;
+                    td.innerHTML = optHtml;
+                } else {
+                    td.innerHTML = `<input type="${f.type}" data-key="${f.key}" value="${val}" class="w-full p-1 bg-gray-50 border rounded">`;
+                }
+                tr.appendChild(td);
+            });
+            
+            // 刪除按鈕
+            let btnTd = document.createElement("td");
+            btnTd.className = "p-1 text-center";
+            btnTd.innerHTML = `<button onclick="this.closest('tr').remove()" class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">刪除</button>`;
+            tr.appendChild(btnTd);
+            tbody.appendChild(tr);
+        }
+
+        // 💾 萬能儲存大腦：會自動根據當前表單類型，完美打包
+        document.getElementById('btn-save').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "⏳ 正在同步至總部...";
+
+            const config = window.FORMS_CONFIG.find(f => f.id === currentActiveFormId);
+            const pageData = {};
+
+            if(config.type === "grid_sections") {
+                document.querySelectorAll(".dynamic-input").forEach(el => pageData[el.dataset.field] = el.value);
+            }
+            else if(config.type === "fixed_table") {
+                document.querySelectorAll(".dynamic-table-cell").forEach(el => pageData[el.dataset.cell] = el.value);
+            }
+            else if(config.type === "dynamic_table") {
+                pageData.rows = [];
+                document.querySelectorAll(".dynamic-table-row").forEach(tr => {
+                    let rowObj = {};
+                    tr.querySelectorAll("[data-key]").forEach(input => rowObj[input.dataset.key] = input.value);
+                    pageData.rows.push(rowObj);
+                });
+            }
+            else if(config.type === "security_group") {
+                config.tables.forEach(t => {
+                    pageData[`${t.id}_no`] = document.getElementById(`card-no-${t.id}`).value;
+                    for(let i=1; i<=t.rowCount; i++) {
+                        pageData[`${t.id}_u_${i}`] = document.getElementById(`${t.id}_u_${i}`).value;
+                        pageData[`${t.id}_p_${i}`] = document.getElementById(`${t.id}_p_${i}`).value;
+                    }
+                });
+            }
+
+            // 更新到記憶體
+            globalDataStore[currentActiveFormId] = pageData;
+
+            // 送上雲端
+            const { error } = await supabaseClient.from('店經理手冊-帳密').update({ content: JSON.stringify(globalDataStore) }).eq('manager_email', currentUserEmail);
+            if (error) { alert("儲存失敗！"); btn.innerText = "💾 儲存本頁資料"; } 
+            else { alert("🎉 本頁檔案已自動加密同步至總部！"); btn.innerText = "💾 儲存本頁資料"; }
         });
 
-        // 頁面切換邏輯
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.className = "tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800");
-
-            if (tabName === 'home') {
-                document.getElementById('tab-home').classList.remove('hidden');
-                event.target.className = "tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium";
-            } else {
-                document.getElementById('tab-pdf').classList.remove('hidden');
-                event.target.className = "tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium";
-                
-                const pdfViewer = document.getElementById('pdf-viewer');
-                const pdfTitle = document.getElementById('pdf-title');
-                
-                // 這裡可以換成你放在 Google 5TB 雲端硬碟手冊的「唯讀分享連結」
-                if (tabName === 'sop1') { pdfTitle.innerText = "📄 01_服務流程SOP"; pdfViewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
-                if (tabName === 'sop2') { pdfTitle.innerText = "📄 02_設備故障排除"; pdfViewer.src = ""; }
-                if (tabName === 'sop3') { pdfTitle.innerText = "📄 03_人事考勤管理"; pdfViewer.src = ""; }
-                if (tabName === 'sop4') { pdfTitle.innerText = "📄 04_清潔衛生標準"; pdfViewer.src = ""; }
-                if (tabName === 'sop5') { pdfTitle.innerText = "📄 05_緊急事件處理"; pdfViewer.src = ""; }
-            }
+        // 唯讀手冊切換
+        function switchSOP(sopId) {
+            document.querySelectorAll(".menu-nav-btn, .tab-btn").forEach(el => el.className = el.className.replace("bg-indigo-600 text-white font-medium", "text-gray-300 hover:bg-gray-800"));
+            event.target.className = event.target.className.replace("text-gray-300 hover:bg-gray-800", "bg-indigo-600 text-white font-medium");
+            
+            document.getElementById('dynamic-form-render-engine').classList.add('hidden');
+            document.getElementById('panel-pdf').classList.remove('hidden');
+            
+            const viewer = document.getElementById('pdf-viewer');
+            if (sopId === 'sop1') { document.getElementById("current-tab-title").innerText = "📄 01_服務流程SOP"; viewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
+            if (sopId === 'sop2') { document.getElementById("current-tab-title").innerText = "📄 02_設備故障排除"; viewer.src = ""; }
         }
+
+        document.getElementById('btn-logout').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
     </script>
 </body>
 </html>
