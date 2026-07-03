@@ -10,17 +10,19 @@
     <script src="forms-config.js"></script>
     
     <!-- =================================================================================== -->
-    <!-- 👁️ 【功能大項 1：全自動高階安全防複製防外洩樣式控制】                           -->
+    <!-- 👁️ 【大項功能 1：全自動高階安全防複製防外洩樣式控制】                           -->
     <!-- =================================================================================== -->
     <style>
+        /* 最高資安防禦：no-select 負責禁止網頁被選取複製，搭配 body 上的 layout 完全鎖定右鍵 */
         .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+        /* 唯獨放行輸入框、文本框與下拉選單，讓經理在格子內可以正常輸入打字與點選單 */
         input, textarea, select { user-select: text !important; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans no-select" oncontextmenu="return false;">
 
     <!-- =================================================================================== -->
-    <!-- 🚪 【功能大項 2：獨立門市安全登入介面】                                               -->
+    <!-- 🚪 【大項功能 2：獨立門市安全登入介面】                                               -->
     <!-- =================================================================================== -->
     <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
         <div class="text-center mb-6">
@@ -44,7 +46,7 @@
     </div>
 
     <!-- =================================================================================== -->
-    <!-- 🏪 【功能大項 3：系統內部主面板外殼控制中心】                                         -->
+    <!-- 🏪 【大項功能 3：系統內部主面板外殼控制中心】                                         -->
     <!-- =================================================================================== -->
     <div id="main-dashboard" class="hidden w-full h-screen flex">
         
@@ -150,7 +152,7 @@
         let isAdminMode = false;     
         let allStoresRows = [];      
         let isDirty = false;         
-        window.globalUserIP = "偵測中..."; // 全域紀錄目前觸發者的實際 IP 位址
+        window.globalUserIP = "偵測中..."; 
 
         // ===================================================================================
         // ⚙️ 【【 小白調整區 2：計時器與安全參數控制中樞 】】
@@ -173,11 +175,10 @@
                 const data = await response.json();
                 window.globalUserIP = data.ip || "備用未知IP";
             } catch (err) {
-                console.log("⚠️ 本地網路環境限制或防火牆攔截，改採安全去識別化紀錄");
+                console.log("⚠️ 本地網路環境限制，採安全去識別化紀錄");
                 window.globalUserIP = "未知本地IP";
             }
         }
-        // 開機立刻無感啟動抓取 IP 動作
         fetchVisitorIP();
 
         // ===================================================================================
@@ -186,7 +187,6 @@
         async function recordOperationLog(actionDescription) {
             if (!supabaseClient) return;
             try {
-                // 將此發射動作無聲推播至你在後台新建的【門市操作日誌】小辦公室
                 await supabaseClient.from('門市操作日誌').insert([
                     {
                         operator_email: currentUserEmail || "未登入訪客",
@@ -195,7 +195,7 @@
                     }
                 ]);
             } catch (logErr) {
-                console.error("🔒 日誌寫入例外，已於本地阻斷：", logErr);
+                console.error("🔒 日誌寫入例外：", logErr);
             }
         }
 
@@ -209,14 +209,16 @@
                 currentUserEmail = session.user.email;
                 isAdminMode = (currentUserEmail === ADMIN_GOD_EMAIL);
                 
-                // 🕵️‍♂️ 觸發黑盒子：記錄 F5 自動恢復登入狀態與 IP
                 await recordOperationLog("F5 重新整理重新載入，系統成功自動恢復連線狀態");
-                
                 enterDashboard(); 
+            } else {
+                // 👨‍💻 鋼鐵優化：如果判定沒登入，外殼死鎖在 hidden 狀態，杜絕一切漏看漏洞
+                document.getElementById('main-dashboard').classList.add('hidden');
+                document.getElementById('login-card').classList.remove('hidden');
             }
         });
 
-        // 🛠️ 【自訂彈窗引擎（無英文網址，雙模切換）】
+        // 🛠  自訂雙模彈窗
         function customPopupDriver(title, message, icon = "💡", isConfirm = false, onConfirm = null, onCancel = null) {
             document.getElementById("modal-icon").innerText = icon;
             document.getElementById("modal-title").innerText = title;
@@ -240,12 +242,12 @@
             customPopupDriver("忘記密碼提示", "為確保門市資安，請聯繫【總部教育中心#241~244】進行密碼核對與重設。", "💡");
         }
 
-        // 🛡️ 強制攔截關閉分頁
+        // 🛡 強制攔截關閉分頁
         window.addEventListener('beforeunload', (e) => {
             if (isDirty) { e.preventDefault(); e.returnValue = '您修改的內容尚未儲存！'; }
         });
 
-        // ⏱️ 在線計時器
+        // ⏱ 在線計時器
         function initSessionTimer() {
             sessionSeconds = 30 * 60; 
             clearInterval(countdownInterval);
@@ -263,7 +265,7 @@
 
                 if (sessionSeconds <= 0) {
                     clearInterval(countdownInterval); isDirty = false;
-                    recordOperationLog("安全超時：系統判定在線超過 30 分鐘無實質操作，執行安全性強行退出");
+                    recordOperationLog("安全超時：系統判定在線超過 30 分鐘無操作，強行安全退出");
                     customPopupDriver("安全登出提示", "您已持續在線超過 30 分鐘，系統已自動將您安全登出。\n歡迎重新登入！", "⏱️");
                     setTimeout(() => { window.location.reload(); }, 4000);
                 }
@@ -273,7 +275,7 @@
             window.onmousemove = resetTimer; window.onkeypress = resetTimer; window.onclick = resetTimer;
         }
 
-        // ⏱️ 10分鐘背景自存 + 資安紀錄
+        // ⏱ 10分鐘背景自存
         setInterval(async () => {
             if (isDirty && currentUserEmail && currentActiveFormId && currentActiveFormId !== "admin_report" && !panelPdfActive()) {
                 await executeSaveAction(true); 
@@ -299,10 +301,7 @@
                 else { 
                     currentUserEmail = data.user.email;
                     isAdminMode = (currentUserEmail === ADMIN_GOD_EMAIL);
-                    
-                    // 🕵️‍♂️ 觸發黑盒子：手動登入成功紀錄
-                    await recordOperationLog("帳號密碼校對成功，合法登入系統儀表板");
-                    
+                    await recordOperationLog("帳密校對成功，合法登入系統儀表板");
                     enterDashboard(); 
                 }
             } catch (err) { customPopupDriver("後台連線失敗！", err.message, "🚨"); resetLoginButton(); }
@@ -313,28 +312,31 @@
             btn.innerText = "登入系統"; btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
-        // 🔐 初始化面板
+        // ===================================================================================
+        // 🔐 【大項功能 11：解鎖面板與彩繪初始化（🌟 鋼鐵防線：安全載入完成才允許解鎖畫面外殼）】
+        // ===================================================================================
         async function enterDashboard() {
-            document.getElementById('login-card').classList.add('hidden');
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
-            initSessionTimer(); 
-
-            if (isAdminMode) { document.getElementById("admin-sidebar-section").classList.remove("hidden"); }
-
-            const submenuContainer = document.getElementById("submenu-main-info");
-            submenuContainer.innerHTML = "";
-            window.FORMS_CONFIG.forEach((form) => {
-                submenuContainer.innerHTML += `<button id="menu-btn-${form.id}" onclick="handleTabSwitch('${form.id}')" class="form-nav-btn w-full text-left px-3 py-2 rounded text-gray-400 hover:bg-gray-800 hover:text-white text-xs flex items-center space-x-2 transition"><span>${form.icon}</span><span>${form.title}</span></button>`;
-            });
-
+            // 👨‍💻 工程師核心優化：進場絕不先開大門，等數據安全落地比對完畢才准許切換 UI 外殼
             try {
+                isAdminMode = (currentUserEmail === ADMIN_GOD_EMAIL);
+                
                 if (isAdminMode) {
-                    document.getElementById("admin-switcher-zone").classList.remove("hidden");
+                    // 👑 管理者身分：先去後台撈取所有門市列表
                     const { data, error } = await supabaseClient.from('店經理手冊-帳密').select('*');
                     if (error) throw error;
                     
                     allStoresRows = data || [];
+                    if(allStoresRows.length === 0) throw new Error("總部後台尚未建置任何店家列資料");
+                    
+                    // 🌟 通過重重數據考驗！此時此刻才放行解鎖外殼，絕不露白
+                    document.getElementById('login-card').classList.add('hidden');
+                    document.getElementById('main-dashboard').classList.remove('hidden');
+                    document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
+                    initSessionTimer(); 
+                    
+                    document.getElementById("admin-sidebar-section").classList.remove("hidden");
+                    document.getElementById("admin-switcher-zone").classList.remove("hidden");
+                    
                     const selector = document.getElementById("admin-store-selector");
                     selector.innerHTML = "";
                     allStoresRows.forEach(store => {
@@ -343,20 +345,47 @@
                     loadSelectedStoreData(allStoresRows[0].manager_email);
                     handleTabSwitch('admin_report');
                 } else {
-                    const { data } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
-                    if (data) {
-                        document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
-                        targetStoreEmail = currentUserEmail;
-                        globalDataStore = data.content ? JSON.parse(data.content) : {};
-                        renderFormEngine(window.FORMS_CONFIG[0].id); 
-                    }
+                    // 🏪 普通店長身分：先去拉取本店資料
+                    const { data, error } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
+                    if (error || !data) throw new Error("找不到此公務信箱對應之門市配置資料，拒絕放行！");
+                    
+                    // 🌟 通過數據考驗！放行解鎖外殼
+                    document.getElementById('login-card').classList.add('hidden');
+                    document.getElementById('main-dashboard').classList.remove('hidden');
+                    document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
+                    initSessionTimer(); 
+                    
+                    document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
+                    targetStoreEmail = currentUserEmail;
+                    globalDataStore = data.content ? JSON.parse(data.content) : {};
+                    
+                    // 刷洗畫出左側按鈕
+                    const submenuContainer = document.getElementById("submenu-main-info");
+                    submenuContainer.innerHTML = "";
+                    window.FORMS_CONFIG.forEach((form) => {
+                        submenuContainer.innerHTML += `<button id="menu-btn-${form.id}" onclick="handleTabSwitch('${form.id}')" class="form-nav-btn w-full text-left px-3 py-2 rounded text-gray-400 hover:bg-gray-800 hover:text-white text-xs flex items-center space-x-2 transition"><span>${form.icon}</span><span>${form.title}</span></button>`;
+                    });
+                    
+                    renderFormEngine(window.FORMS_CONFIG[0].id); 
                 }
             } catch(e) {
-                customPopupDriver("系統錯誤", "無法讀取門市分配表\n" + e.message, "🚨");
+                // 🚨 終極資安降維退場攔截線：只要連線被快按 F5 丟包、中斷或權限不足，直接執行無條件退場！
+                console.error("🚨 安全連線異常，系統強行啟動退場機制：", e.message);
+                
+                // 1. 徹底銷毀殘留的 Session，防止在登入頁按 F5 產生無限死循環
+                if (supabaseClient) { await supabaseClient.auth.signOut(); }
+                
+                // 2. 將所有面板強力鎖死回 hidden，把大門封死，絕對不洩漏已有架構！
+                document.getElementById('main-dashboard').classList.add('hidden');
+                document.getElementById('login-card').classList.remove('hidden');
+                document.body.className = "bg-gray-100 min-h-screen flex items-center justify-center font-sans no-select";
+                
+                resetLoginButton();
+                showCustomAlert("安全性連線中斷", "系統偵測到異常的連續重新整理，或您的登入憑證已失效。\n\n為保障門市資訊安全，系統已強行重置所有加密授權，請重新輸入帳密進行驗證登入。", "🔒");
             }
         }
 
-        // 🛡️ 自訂無網址彈窗換頁攔截
+        // 🛡 自訂彈窗換頁攔截
         window.handleTabSwitch = function(formId) {
             if (isDirty) {
                 customPopupDriver(
@@ -395,18 +424,16 @@
                 document.getElementById('welcome-title').innerText = `👑 檢視：${storeRow.store_name}`;
                 globalDataStore = storeRow.content ? JSON.parse(storeRow.content) : {};
                 
-                // 🕵️‍♂️ 觸發黑盒子：管理者跨店巡檢調閱動作紀錄
                 if (isAdminMode) {
-                    recordOperationLog(`最高權限管理者切換檢視標的 ➔ 目前鎖定門市：${storeRow.store_name} (${email})`);
+                    recordOperationLog(`最高管理者切換巡檢標的 ➔ 鎖定門市：${storeRow.store_name} (${email})`);
                 }
-                
                 if (currentActiveFormId !== 'admin_report') {
                     renderFormEngine(currentActiveFormId || window.FORMS_CONFIG[0].id);
                 }
             }
         }
 
-        // 👑 獨立總部報表專區中心面板彩繪
+        // 👑 獨立總部報表專區中心
         function renderAdminReportEngine() {
             currentActiveFormId = "admin_report";
             document.getElementById('panel-pdf').classList.add('hidden');
@@ -459,7 +486,7 @@
             });
         }
 
-        // 🤖 動態表格彩繪還原引擎
+        // 🤖 表單彩繪引擎
         function renderFormEngine(formId) {
             currentActiveFormId = formId;
             document.getElementById('panel-pdf').classList.add('hidden');
@@ -565,7 +592,7 @@
             Array.from(tbody.children).forEach((tr, idx) => { tr.querySelector(".sec-idx").innerText = idx + 1; });
         }
 
-        // 💾 儲存打包處理模組
+        // 💾 儲存打包
         async function executeSaveAction(isBackground = false) {
             const btn = document.getElementById('btn-save'); 
             if(!isBackground) btn.innerText = "⏳ 正在同步中...";
@@ -606,7 +633,6 @@
                     if(row) row.content = JSON.stringify(globalDataStore);
                 }
                 
-                // 🕵️‍♂️ 觸發黑盒子：資料變更成功紀錄（自動區分「手動儲存」與「10分鐘自動自存」）
                 const storeObj = allStoresRows.find(r => r.manager_email === targetStoreEmail) || { store_name: "本店" };
                 const logLabel = isBackground ? "10分鐘背景定期自動防呆儲存" : "點擊綠色按鈕手動儲存";
                 await recordOperationLog(`${logLabel} ➔ 成功同步門市【${storeObj.store_name}】之表單：${config.title}`);
@@ -620,7 +646,7 @@
             }
         }
 
-        // 👑 報表專區高級 Excel 格式化匯出
+        // 👑 報表大匯出
         window.exportToExcel = function(mode) {
             let csvContent = "\ufeff"; 
             
@@ -631,34 +657,24 @@
                 csvContent += `門市名稱,${storeRow.store_name}\n`;
                 csvContent += `門市信箱,${storeRow.manager_email}\n\n`;
                 csvContent += buildStoreCSVData(storeRow);
-                
-                // 🕵️‍♂️ 觸發黑盒子：紀錄單店報表匯出動作
                 recordOperationLog(`總部匯出報表：下載門市【${storeRow.store_name}】之獨立手冊明細表`);
-                
                 downloadCSV(`單店報表_${storeRow.store_name}.csv`, csvContent);
             } 
             else if (mode === 'all') {
                 csvContent += "全門市大總表合併報表\n";
                 csvContent += "門市名稱,門市信箱,手冊分類項目,區塊區分/標題欄,細項名稱/職稱/序號,填報內容詳細明細\n";
                 allStoresRows.forEach(store => { csvContent += buildStoreCSVRowsForCombined(store, null); });
-                
-                // 🕵️‍♂️ 觸發黑盒子：紀錄全台灣合併大總表匯出動作
                 recordOperationLog("總部匯出報表：下載【全門市大數據合併總表 (全台灣 120 店聯網總稽核)】");
-                
                 downloadCSV(`全門市手冊整合大總表.csv`, csvContent);
             }
         }
 
-        // 👑 橫向單一表單橫向稽核下載與黑盒子連動
         window.exportCategoryOnly = function(formId, formTitle) {
             let csvContent = "\ufeff";
             csvContent += `全門市橫向專向稽核報表：${formTitle}\n`;
             csvContent += "門市名稱,門市信箱,手冊分類項目,區塊區分/標題欄,細項名稱/職稱/序號,填報內容詳細明細\n";
             allStoresRows.forEach(store => { csvContent += buildStoreCSVRowsForCombined(store, formId); });
-            
-            // 🕵️‍♂️ 觸發黑盒子：紀錄橫向稽核匯出
-            recordOperationLog(`總部匯出報表：執行橫向大抽洗 ➔ 單獨下載全台門市之【${formTitle.split(". ")[1]}】資料`);
-            
+            recordOperationLog("總部匯出報表：下載全台門市之分項稽核【" + formTitle.split(". ")[1] + "】大總表");
             downloadCSV(`全門市橫向稽核_${formTitle.split(". ")[1]}.csv`, csvContent);
         }
 
@@ -734,6 +750,16 @@
             return str;
         }
 
+        function downloadCSV(filename, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // 📚 唯讀手冊切換模組
         function switchSOP(sopId) {
             if (isDirty) {
@@ -754,10 +780,9 @@
             if (sopId === 'sop2') { document.getElementById("current-tab-title").innerText = "📄 02_設備故障排除"; viewer.src = ""; }
         }
         
-        // 🔄 註銷登出 + 寫入登出日誌
+        // 🔄 註銷登出
         document.getElementById('btn-logout').addEventListener('click', async () => { 
             isDirty = false; 
-            // 🕵️‍♂️ 觸發黑盒子：記錄登出動作
             await recordOperationLog("使用者主動點擊按鈕登出系統，註銷金鑰");
             if (supabaseClient) { await supabaseClient.auth.signOut(); }
             window.location.reload(); 
