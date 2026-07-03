@@ -6,7 +6,6 @@
     <title>門市經理數位管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 引入獨立的內容設定檔 -->
     <script src="forms-config.js"></script>
     <style>
         .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
@@ -30,11 +29,9 @@
                 <label class="block text-sm font-medium text-gray-700">登入密碼 (Password)</label>
                 <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
-            
             <div class="flex justify-end">
                 <button onclick="handleForgotPassword()" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">忘記密碼？</button>
             </div>
-
             <button id="btn-login" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer transition-all">登入系統</button>
         </div>
     </div>
@@ -46,12 +43,12 @@
             <div class="p-5">
                 <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6">🏪 讀取中...</h1>
                 <nav class="space-y-1">
-                    <div class="text-xs text-gray-400 font-bold px-3 pt-2 pb-1 uppercase tracking-wider">📋 門市日常填報表單</div>
-                    <div id="sidebar-menu-container"></div>
+                    <!-- 改名：門市資訊導覽鈕 -->
+                    <button id="menu-btn-main-info" onclick="switchToMainInfo()" class="sidebar-nav-btn w-full text-left px-3 py-2 rounded bg-indigo-600 text-white font-medium text-sm flex items-center space-x-2"><span>📋</span><span>門市資訊</span></button>
                     
-                    <div class="text-xs text-gray-400 font-bold px-3 pt-4 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
-                    <button onclick="switchSOP('sop1')" class="tab-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 01_服務流程SOP</button>
-                    <button onclick="switchSOP('sop2')" class="tab-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 02_設備故障排除</button>
+                    <div class="text-xs text-gray-400 font-bold px-3 pt-6 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
+                    <button id="menu-btn-sop1" onclick="switchSOP('sop1')" class="sidebar-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 01_服務流程SOP</button>
+                    <button id="menu-btn-sop2" onclick="switchSOP('sop2')" class="sidebar-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm">📄 02_設備故障排除</button>
                 </nav>
             </div>
             <div class="p-5 border-t border-gray-800">
@@ -63,14 +60,16 @@
         <div class="flex-1 bg-gray-50 p-8 overflow-y-auto flex flex-col">
             <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
                 <div>
-                    <h2 id="current-tab-title" class="text-2xl font-bold text-gray-800">請選擇表單</h2>
-                    <p class="text-sm text-gray-500 mt-1">資料將安全加密同步至總部後台，店長與外人皆無法下載導出。</p>
+                    <h2 id="current-tab-title" class="text-2xl font-bold text-gray-800">門市資訊總覽</h2>
+                    <p class="text-sm text-gray-500 mt-1">點擊各表單標題即可展開或折疊。修改後請務必點擊右側按鈕進行全店資料存檔。</p>
                 </div>
-                <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">💾 儲存本頁資料</button>
+                <!-- 升級：一鍵儲存所有折疊表單 -->
+                <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">💾 儲存所有門市資訊</button>
             </div>
 
-            <!-- 動態表單主容器 -->
-            <div id="dynamic-form-render-engine" class="flex-1"></div>
+            <!-- 折疊式窗主容器 -->
+            <div id="accordion-container" class="space-y-4 flex-1"></div>
+            
             <!-- PDF 唯讀手冊顯示容器 -->
             <div id="panel-pdf" class="tab-panel hidden h-[70vh] bg-white border border-gray-300 rounded-xl shadow-sm">
                 <iframe id="pdf-viewer" class="w-full h-full rounded-xl" src="" frameborder="0"></iframe>
@@ -78,322 +77,282 @@
         </div>
     </div>
 
-    <!-- 🌟 自訂高階美化彈出視窗 (徹底隱藏英文網址、字體放大 100%) -->
+    <!-- 自訂高階大字體彈出視窗 -->
     <div id="custom-alert-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 transition-all">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-100 text-center space-y-5">
-            <!-- 放大圖示 -->
             <div id="modal-icon" class="text-5xl">❌</div>
-            <!-- 大標題加粗加高 -->
             <h3 id="modal-title" class="text-3xl font-black text-gray-800 tracking-wide">標題</h3>
-            <!-- 詳細內文放大與更舒適的行距 -->
             <p id="modal-message" class="text-lg text-gray-600 leading-relaxed font-medium px-2">訊息內容</p>
-            <!-- 亮眼大按鈕 -->
             <button id="modal-close-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 text-lg rounded-xl shadow-md cursor-pointer transition-all">確定</button>
         </div>
     </div>
 
     <script>
         // ⚠️ 請記得貼上你的 Supabase 密鑰
-        const SUPABASE_URL = "https://ysvgdktjgzrgidqzlcgk.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
+        const SUPABASE_URL = "在此處貼上你的Project URL";
+        const SUPABASE_ANON_KEY = "在此處貼上你的anon public金鑰";
         
         let supabaseClient;
-        try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch(e) {
-            console.error("Supabase 初始化錯誤：", e);
-        }
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) { console.error(e); }
         
         let currentUserEmail = "";
-        let currentActiveFormId = "";
         let globalDataStore = {}; 
 
-        // 🛠️ 替代傳統 alert() 的客製化大字體彈窗驅動函式
         function showCustomAlert(title, message, icon = "💡") {
             document.getElementById("modal-icon").innerText = icon;
             document.getElementById("modal-title").innerText = title;
             document.getElementById("modal-message").innerText = message;
-            
             const modal = document.getElementById("custom-alert-modal");
             modal.classList.remove("hidden");
-            
-            // 綁定點擊關閉按鈕事件
-            document.getElementById("modal-close-btn").onclick = function() {
-                modal.classList.add("hidden");
-            };
+            document.getElementById("modal-close-btn").onclick = function() { modal.classList.add("hidden"); };
         }
 
-        // 忘記密碼處理
         function handleForgotPassword() {
             showCustomAlert("忘記密碼提示", "為確保門市資安，請聯繫【總部教育訓練處主管】進行密碼核對與重設。", "💡");
         }
 
-        // 登入按鈕事件
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const btn = document.getElementById('btn-login');
-
-            if (!email || !password) {
-                showCustomAlert("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️");
-                return;
-            }
-
-            btn.innerText = "⏳ 正在驗證登入...";
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-
+            if (!email || !password) { showCustomAlert("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️"); return; }
+            btn.innerText = "⏳ 正在驗證登入..."; btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed');
             try {
-                if (!supabaseClient) {
-                    throw new Error("資料庫連線核心未啟動，請檢查程式碼內設定。");
-                }
-
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                
-                if (error) {
-                    if (error.message === 'Invalid login credentials' || error.status === 400) {
-                        showCustomAlert("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌");
-                    } else {
-                        showCustomAlert("系統錯誤", error.message, "❌");
-                    }
-                    resetLoginButton();
-                } else {
-                    currentUserEmail = data.user.email;
-                    enterDashboard();
-                }
-            } catch (err) {
-                showCustomAlert("後台連線失敗！", `可能原因：\n1. 您的網路連線已斷開。\n2. 程式碼中的 Project URL 或金鑰複製不完整。\n\n詳細回報：${err.message || err}`, "🚨");
-                resetLoginButton();
-            }
+                if (error) { showCustomAlert("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌"); resetLoginButton(); } 
+                else { currentUserEmail = data.user.email; enterDashboard(); }
+            } catch (err) { showCustomAlert("後台連線失敗！", err.message, "🚨"); resetLoginButton(); }
         });
 
         function resetLoginButton() {
             const btn = document.getElementById('btn-login');
-            btn.innerText = "登入系統";
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerText = "登入系統"; btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
-        // 登入成功載入數據
         async function enterDashboard() {
             document.getElementById('login-card').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
-            document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
-
-            const menuContainer = document.getElementById("sidebar-menu-container");
-            menuContainer.innerHTML = "";
-            window.FORMS_CONFIG.forEach((form) => {
-                menuContainer.innerHTML += `<button id="menu-btn-${form.id}" onclick="renderFormEngine('${form.id}')" class="menu-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm flex items-center space-x-2"><span>${form.icon}</span><span>${form.title}</span></button>`;
-            });
-
             try {
-                const { data, error } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
-                if (error) throw error;
-                
+                const { data } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
                 if (data) {
                     document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
                     globalDataStore = data.content ? JSON.parse(data.content) : {};
-                    renderFormEngine(window.FORMS_CONFIG[0].id);
+                    buildAccordionInterface(); // 啟動全自動折疊引擎渲染
                 }
             } catch(e) {
-                showCustomAlert("注意！", `成功登入帳號，但未能在後台找到配置對應您這組 Email (${currentUserEmail}) 的店名資料列。`, "⚠️");
                 document.getElementById('welcome-title').innerText = `🏪 未知門市`;
-                globalDataStore = {};
-                renderFormEngine(window.FORMS_CONFIG[0].id);
+                buildAccordionInterface();
             }
         }
 
-        // 自動表單渲染引擎
-        function renderFormEngine(formId) {
-            currentActiveFormId = formId;
-            document.getElementById('panel-pdf').classList.add('hidden');
-            document.getElementById('dynamic-form-render-engine').classList.remove('hidden');
-            
-            document.querySelectorAll(".menu-nav-btn, .tab-btn").forEach(el => el.className = el.className.replace("bg-indigo-600 text-white font-medium", "text-gray-300 hover:bg-gray-800"));
-            const activeBtn = document.getElementById(`menu-btn-${formId}`);
-            if(activeBtn) activeBtn.className = activeBtn.className.replace("text-gray-300 hover:bg-gray-800", "bg-indigo-600 text-white font-medium");
+        // 🤖 核心亮點：全自動折疊視窗建置器
+        function buildAccordionInterface() {
+            const container = document.getElementById("accordion-container");
+            container.innerHTML = "";
 
-            const config = window.FORMS_CONFIG.find(f => f.id === formId);
-            document.getElementById("current-tab-title").innerText = config.title;
-            
-            const engineContainer = document.getElementById("dynamic-form-render-engine");
-            engineContainer.innerHTML = "";
-            
-            const formData = globalDataStore[formId] || {};
-
-            if(config.type === "grid_sections") {
-                config.sections.forEach((sec) => {
-                    let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
-                        <div class="font-bold text-gray-800 border-b border-gray-100 pb-2 text-md flex items-center space-x-1"><span>${sec.name}</span></div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
-                    sec.fields.forEach(f => {
-                        if(f.fullWidth) {
-                            html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
-                        } else {
-                            html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-field="${f.id}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
-                        }
-                    });
-                    html += `</div></div>`;
-                    engineContainer.innerHTML += html;
-                    
-                    sec.fields.forEach(f => {
-                        let val = formData[f.id] || "";
-                        const el = engineContainer.querySelector(`[data-field="${f.id}"]`);
-                        if(el) el.value = val;
-                    });
-                });
-            }
-
-            if(config.type === "fixed_table") {
-                let html = `<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"><table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
-                config.headers.forEach(h => html += `<th class="px-4 py-3">${h}</th>`);
-                html += `</tr></thead><tbody class="divide-y divide-gray-200">`;
-                config.rows.forEach((rowName, rIdx) => {
-                    html += `<tr class="hover:bg-gray-50"><td class="px-4 py-2 font-medium text-gray-700 bg-gray-50">${rowName}</td>`;
-                    for(let cIdx=1; cIdx<config.headers.length; cIdx++) {
-                        let key = `row_${rIdx}_cell_${cIdx}`;
-                        html += `<td class="px-2 py-1"><input type="text" data-cell="${key}" class="dynamic-table-cell w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td>`;
-                    }
-                    html += `</tr>`;
-                });
-                html += `</tbody></table></div>`;
-                engineContainer.innerHTML += html;
+            window.FORMS_CONFIG.forEach((form, fIdx) => {
+                const formData = globalDataStore[form.id] || {};
                 
-                config.rows.forEach((rowName, rIdx) => {
-                    for(let cIdx=1; cIdx<config.headers.length; cIdx++) {
-                        let key = `row_${rIdx}_cell_${cIdx}`;
-                        let val = formData[key] !== undefined ? formData[key] : (config.defaultValues?.[key] || "");
-                        const el = engineContainer.querySelector(`[data-cell="${key}"]`);
-                        if(el) el.value = val;
-                    }
-                });
-            }
-
-            if(config.type === "dynamic_table") {
-                let html = `<div class="flex justify-end mb-3"><button onclick="addDynamicRow('${formId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded shadow cursor-pointer">➕ 新增資料列</button></div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 text-xs text-left whitespace-nowrap"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
-                config.headers.forEach(h => html += `<th class="px-2 py-3">${h}</th>`);
-                html += `<th class="px-2 py-3 w-12">操作</th></tr></thead><tbody id="dynamic-tbody" class="divide-y divide-gray-200"></tbody></table></div>`;
-                engineContainer.innerHTML += html;
+                // 建立折疊外殼卡片
+                const card = document.createElement("div");
+                card.className = "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all";
                 
-                const rowsData = formData.rows || [];
-                if(rowsData.length === 0) { addDynamicRow(formId); } else { rowsData.forEach(rData => addDynamicRow(formId, rData)); }
-            }
-
-            if(config.type === "security_group") {
-                config.tables.forEach(t => {
-                    let html = `<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-3">
-                            <span class="font-bold text-gray-800">${t.name}</span>
-                            <div class="text-sm flex items-center space-x-1"><span class="text-gray-600">${t.cardLabel}：</span><input type="text" id="card-no-${t.id}" class="px-3 py-1 bg-gray-50 border border-gray-300 rounded shadow-sm w-48"></div>
-                        </div>
-                        <table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-600"><tr><th class="px-4 py-2 w-20">序號</th><th class="px-4 py-2">持卡人</th><th class="px-4 py-2">電話/手機</th></tr></thead><tbody class="divide-y divide-gray-200">`;
-                    for(let i=1; i<=t.rowCount; i++) {
-                        html += `<tr><td class="px-4 py-2 text-gray-500 font-medium bg-gray-50">${i}</td>
-                        <td class="px-2 py-1"><input type="text" id="${t.id}_u_${i}" class="w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td>
-                        <td class="px-2 py-1"><input type="text" id="${t.id}_p_${i}" class="w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded"></td></tr>`;
+                // 1. 折疊標題列 (點擊切換隱藏)
+                const header = document.createElement("div");
+                header.className = "bg-gray-50 px-6 py-4 flex justify-between items-center cursor-pointer select-none border-b border-gray-100 hover:bg-gray-100 transition";
+                header.innerHTML = `
+                    <div class="flex items-center space-x-3 text-lg font-bold text-gray-800">
+                        <span>${form.icon}</span><span>${form.title}</span>
+                    </div>
+                    <span id="chevron-${form.id}" class="text-gray-400 font-bold text-xl transform transition-transform duration-200">▼</span>
+                `;
+                
+                // 2. 內容包裹容器
+                const bodyWrapper = document.createElement("div");
+                bodyWrapper.id = `body-wrapper-${form.id}`;
+                bodyWrapper.className = fIdx === 0 ? "p-6" : "p-6 hidden"; // 預設只展開第一個表單，其他折疊
+                if (fIdx > 0) card.classList.add("opacity-95");
+                
+                // 點擊事件：切換展開/折疊
+                header.onclick = () => {
+                    const isHidden = bodyWrapper.classList.contains("hidden");
+                    if (isHidden) {
+                        bodyWrapper.classList.remove("hidden");
+                        document.getElementById(`chevron-${form.id}`).style.transform = "rotate(180deg)";
+                    } else {
+                        bodyWrapper.classList.add("hidden");
+                        document.getElementById(`chevron-${form.id}`).style.transform = "rotate(0deg)";
                     }
-                    html += `</tbody></table></div>`;
-                    engineContainer.innerHTML += html;
-                    
-                    let cardNo = formData[`${t.id}_no`] || "";
-                    document.getElementById(`card-no-${t.id}`).value = cardNo;
-                    for(let i=1; i<=t.rowCount; i++) {
-                        if(formData[`${t.id}_u_${i}`]) document.getElementById(`${t.id}_u_${i}`).value = formData[`${t.id}_u_${i}`];
-                        if(formData[`${t.id}_p_${i}`]) document.getElementById(`${t.id}_p_${i}`).value = formData[`${t.id}_p_${i}`];
-                    }
-                });
-            }
-        }
+                };
 
-        // 動態增減資料列小幫手
-        function addDynamicRow(formId, rData = {}) {
-            const tbody = document.getElementById("dynamic-tbody");
-            if(!tbody) return;
-            const config = window.FORMS_CONFIG.find(f => f.id === formId);
-            const tr = document.createElement("tr");
-            tr.className = "dynamic-table-row hover:bg-gray-50";
-            
-            config.fields.forEach(f => {
-                let val = rData[f.key] || "";
-                let td = document.createElement("td");
-                td.className = "p-1";
-                if(f.type === "select") {
-                    let optHtml = `<select data-key="${f.key}" class="p-1 bg-gray-50 border rounded">`;
-                    f.options.forEach(o => optHtml += `<option value="${o}" ${val===o?'selected':''}>□ ${o}</option>`);
-                    optHtml += `</select>`;
-                    td.innerHTML = optHtml;
-                } else {
-                    td.innerHTML = `<input type="${f.type}" data-key="${f.key}" value="${val}" class="w-full p-1 bg-gray-50 border rounded">`;
+                // 3. 依據類型動態填入表格內容
+                // 類型 A：分區填空題
+                if(form.type === "grid_sections") {
+                    form.sections.forEach((sec) => {
+                        let html = `<div class="mb-6 space-y-4">
+                            <div class="font-bold text-gray-700 border-b border-gray-100 pb-2 text-sm"><span>${sec.name}</span></div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                        sec.fields.forEach(f => {
+                            if(f.fullWidth) html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-form="${form.id}" data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
+                            else html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-form="${form.id}" data-field="${f.id}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
+                        });
+                        html += `</div></div>`; bodyWrapper.innerHTML += html;
+                        sec.fields.forEach(f => { if(formData[f.id]) bodyWrapper.querySelector(`[data-form="${form.id}"][data-field="${f.id}"]`).value = formData[f.id]; });
+                    });
                 }
+
+                // 類型 B：可自由增減列數的動態表（幹部通訊錄與人事基本資料）
+                if(form.type === "dynamic_table") {
+                    let html = `<div class="flex justify-end mb-3"><button onclick="addDynamicRow('${form.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded shadow cursor-pointer">➕ 新增資料列</button></div><div class="bg-white border border-gray-200 rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 text-xs text-left whitespace-nowrap"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
+                    form.headers.forEach(h => html += `<th class="px-2 py-3">${h}</th>`);
+                    html += `<th class="px-2 py-3 w-12 text-center">操作</th></tr></thead><tbody id="dynamic-tbody-${form.id}" class="divide-y divide-gray-200"></tbody></table></div>`;
+                    bodyWrapper.innerHTML = html;
+                    
+                    const rowsData = formData.rows || [];
+                    if(rowsData.length === 0) {
+                        // 如果是全新的空帳號，且此表單具備 presets (幹部通訊錄)，自動渲染預設幹部
+                        if (form.presets) {
+                            form.presets.forEach(pRole => addDynamicRow(form.id, { role: pRole }));
+                        } else {
+                            addDynamicRow(form.id);
+                        }
+                    } else {
+                        rowsData.forEach(rData => addDynamicRow(form.id, rData));
+                    }
+                }
+
+                // 類型 C：保全雙卡結構頁面 (支援預設 6 列空白格 + 手動增減)
+                if(form.type === "security_group") {
+                    form.tables.forEach(t => {
+                        let html = `<div class="mb-6 space-y-4">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-3">
+                                <span class="font-bold text-gray-700">${t.name}</span>
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-sm flex items-center space-x-1"><span class="text-gray-600">${t.cardLabel}：</span><input type="text" id="card-no-${t.id}" class="px-3 py-1 bg-gray-50 border border-gray-300 rounded shadow-sm w-48"></div>
+                                    <button onclick="addSecurityRow('${t.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2 py-1 rounded shadow cursor-pointer">➕ 新增持卡人</button>
+                                </div>
+                            </div>
+                            <table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-600"><tr><th class="px-4 py-2 w-20">序號</th><th class="px-4 py-2">持卡人</th><th class="px-4 py-2">電話/手機</th><th class="px-4 py-2 w-16 text-center">操作</th></tr></thead><tbody id="security-tbody-${t.id}" class="divide-y divide-gray-200"></tbody></table></div>`;
+                        bodyWrapper.innerHTML += html;
+                    });
+                    
+                    // 填入或建置保全預留列數據
+                    setTimeout(() => {
+                        form.tables.forEach(t => {
+                            let cardNo = formData[`${t.id}_no`] || "";
+                            const cardNoEl = document.getElementById(`card-no-${t.id}`);
+                            if(cardNoEl) cardNoEl.value = cardNo;
+                            
+                            let sRows = formData[`${t.id}_rows`] || [];
+                            if(sRows.length === 0) {
+                                // 2.2 優化：若無舊資料，自動鋪滿 6 列空白格供直接打字輸入
+                                for(let i=1; i<=t.defaultRows; i++) { addSecurityRow(t.id); }
+                            } else {
+                                sRows.forEach(r => addSecurityRow(t.id, r));
+                            }
+                        });
+                    }, 10);
+                }
+
+                card.appendChild(header);
+                card.appendChild(bodyWrapper);
+                container.appendChild(card);
+            });
+        }
+
+        // 動態增減通訊錄/人事表單列
+        window.addDynamicRow = function(formId, rData = {}) {
+            const tbody = document.getElementById(`dynamic-tbody-${formId}`); if(!tbody) return;
+            const config = window.FORMS_CONFIG.find(f => f.id === formId);
+            const tr = document.createElement("tr"); tr.className = `dynamic-row-${formId} hover:bg-gray-50`;
+            config.fields.forEach(f => {
+                let val = rData[f.key] || ""; let td = document.createElement("td"); td.className = "p-1";
+                if(f.type === "select") {
+                    let optHtml = `<select data-key="${f.key}" class="p-1 bg-gray-50 border rounded w-full">`;
+                    f.options.forEach(o => optHtml += `<option value="${o}" ${val===o?'selected':''}>${o}</option>`);
+                    optHtml += `</select>`; td.innerHTML = optHtml;
+                } else { td.innerHTML = `<input type="${f.type}" data-key="${f.key}" value="${val}" class="w-full p-1 bg-gray-50 border rounded">`; }
                 tr.appendChild(td);
             });
-            
-            let btnTd = document.createElement("td");
-            btnTd.className = "p-1 text-center";
+            let btnTd = document.createElement("td"); btnTd.className = "p-1 text-center";
             btnTd.innerHTML = `<button onclick="this.closest('tr').remove()" class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">刪除</button>`;
-            tr.appendChild(btnTd);
-            tbody.appendChild(tr);
+            tr.appendChild(btnTd); tbody.appendChild(tr);
         }
 
-        // 儲存按鈕事件
+        // 保全頁面專用動態增減列數與自動編排序號
+        window.addSecurityRow = function(tableId, rData = {}) {
+            const tbody = document.getElementById(`security-tbody-${tableId}`); if(!tbody) return;
+            const nextIdx = tbody.children.length + 1;
+            const tr = document.createElement("tr"); tr.className = `security-row-${tableId} hover:bg-gray-50`;
+            tr.innerHTML = `
+                <td class="px-4 py-2 text-gray-500 font-medium bg-gray-50 sec-idx">${nextIdx}</td>
+                <td class="px-2 py-1"><input type="text" class="sec-user w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded" value="${rData.user||''}"></td>
+                <td class="px-2 py-1"><input type="text" class="sec-phone w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded" value="${rData.phone||''}"></td>
+                <td class="px-2 py-1 text-center"><button onclick="this.closest('tr').remove(); reindexSecurity('${tableId}');" class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">刪除</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+        window.reindexSecurity = function(tableId) {
+            const tbody = document.getElementById(`security-tbody-${tableId}`); if(!tbody) return;
+            Array.from(tbody.children).forEach((tr, idx) => { tr.querySelector(".sec-idx").innerText = idx + 1; });
+        }
+
+        // 💾 超強全功能大打包：一鍵掃描所有折疊視窗並上傳
         document.getElementById('btn-save').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-save');
-            btn.innerText = "⏳ 正在同步至總部...";
+            const btn = document.getElementById('btn-save'); btn.innerText = "⏳ 全店同步中...";
 
-            const config = window.FORMS_CONFIG.find(f => f.id === currentActiveFormId);
-            const pageData = {};
-
-            if(config.type === "grid_sections") {
-                document.querySelectorAll(".dynamic-input").forEach(el => pageData[el.dataset.field] = el.value);
-            }
-            else if(config.type === "fixed_table") {
-                document.querySelectorAll(".dynamic-table-cell").forEach(el => pageData[el.dataset.cell] = el.value);
-            }
-            else if(config.type === "dynamic_table") {
-                pageData.rows = [];
-                document.querySelectorAll(".dynamic-table-row").forEach(tr => {
-                    let rowObj = {};
-                    tr.querySelectorAll("[data-key]").forEach(input => rowObj[input.dataset.key] = input.value);
-                    pageData.rows.push(rowObj);
-                });
-            }
-            else if(config.type === "security_group") {
-                config.tables.forEach(t => {
-                    pageData[`${t.id}_no`] = document.getElementById(`card-no-${t.id}`).value;
-                    for(let i=1; i<=t.rowCount; i++) {
-                        pageData[`${t.id}_u_${i}`] = document.getElementById(`${t.id}_u_${i}`).value;
-                        pageData[`${t.id}_p_${i}`] = document.getElementById(`${t.id}_p_${i}`).value;
-                    }
-                });
-            }
-
-            globalDataStore[currentActiveFormId] = pageData;
+            window.FORMS_CONFIG.forEach(config => {
+                const pageData = {};
+                if(config.type === "grid_sections") {
+                    document.querySelectorAll(`.dynamic-input[data-form="${config.id}"]`).forEach(el => pageData[el.dataset.field] = el.value);
+                }
+                else if(config.type === "dynamic_table") {
+                    pageData.rows = [];
+                    document.querySelectorAll(`.dynamic-row-${config.id}`).forEach(tr => {
+                        let rowObj = {}; tr.querySelectorAll("[data-key]").forEach(input => rowObj[input.dataset.key] = input.value);
+                        pageData.rows.push(rowObj);
+                    });
+                }
+                else if(config.type === "security_group") {
+                    config.tables.forEach(t => {
+                        const cardNoEl = document.getElementById(`card-no-${t.id}`);
+                        pageData[`${t.id}_no`] = cardNoEl ? cardNoEl.value : "";
+                        pageData[`${t.id}_rows`] = [];
+                        document.querySelectorAll(`.security-row-${t.id}`).forEach(tr => {
+                            pageData[`${t.id}_rows`].push({
+                                user: tr.querySelector(".sec-user").value,
+                                phone: tr.querySelector(".sec-phone").value
+                            });
+                        });
+                    });
+                }
+                globalDataStore[config.id] = pageData;
+            });
 
             try {
                 const { error } = await supabaseClient.from('店經理手冊-帳密').update({ content: JSON.stringify(globalDataStore) }).eq('manager_email', currentUserEmail);
-                if (error) throw error;
-                showCustomAlert("儲存成功！", "本店此表單資料已安全加密同步至總部！", "🎉");
-            } catch(err) {
-                showCustomAlert("儲存失敗！", `錯誤回報：${err.message || err}`, "❌");
-            } finally {
-                btn.innerText = "💾 儲存本頁資料";
-            }
+                if (error) throw error; showCustomAlert("全店存檔成功！", "所有折疊表單的最新修改數據，已安全打包同步至總部！", "🎉");
+            } catch(err) { showCustomAlert("儲存失敗！", err.message, "❌"); } finally { btn.innerText = "💾 儲存所有門市資訊"; }
         });
 
-        // 唯讀手冊切換
+        // 導覽切換
+        function switchToMainInfo() {
+            document.querySelectorAll(".sidebar-nav-btn").forEach(el => el.className = "sidebar-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm");
+            document.getElementById("menu-btn-main-info").className = "sidebar-nav-btn w-full text-left px-3 py-2 rounded bg-indigo-600 text-white font-medium text-sm flex items-center space-x-2";
+            document.getElementById("current-tab-title").innerText = "門市資訊總覽";
+            document.getElementById("panel-pdf").classList.add("hidden");
+            document.getElementById("accordion-container").classList.remove("hidden");
+        }
+
         function switchSOP(sopId) {
-            document.querySelectorAll(".menu-nav-btn, .tab-btn").forEach(el => el.className = el.className.replace("bg-indigo-600 text-white font-medium", "text-gray-300 hover:bg-gray-800"));
-            event.target.className = event.target.className.replace("text-gray-300 hover:bg-gray-800", "bg-indigo-600 text-white font-medium");
-            
-            document.getElementById('dynamic-form-render-engine').classList.add('hidden');
-            document.getElementById('panel-pdf').classList.remove('hidden');
-            
+            document.querySelectorAll(".sidebar-nav-btn").forEach(el => el.className = "sidebar-nav-btn w-full text-left px-3 py-2 rounded text-gray-300 hover:bg-gray-800 text-sm");
+            document.getElementById(`menu-btn-${sopId}`).className = "sidebar-nav-btn w-full text-left px-3 py-2 rounded bg-indigo-600 text-white font-medium text-sm";
+            document.getElementById("accordion-container").classList.add("hidden");
+            document.getElementById("panel-pdf").classList.remove("hidden");
             const viewer = document.getElementById('pdf-viewer');
             if (sopId === 'sop1') { document.getElementById("current-tab-title").innerText = "📄 01_服務流程SOP"; viewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
             if (sopId === 'sop2') { document.getElementById("current-tab-title").innerText = "📄 02_設備故障排除"; viewer.src = ""; }
         }
-
         document.getElementById('btn-logout').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
     </script>
 </body>
