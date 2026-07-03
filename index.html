@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>門市經理數位管理系統</title>
+    <title>門市店經理數位管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="forms-config.js"></script>
@@ -17,12 +17,12 @@
     <!-- 1. 登入區塊 -->
     <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
         <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">門市經理手冊系統</h2>
-            <p class="text-gray-500 mt-2">請輸入門市公務帳號密碼登入</p>
+            <h2 class="text-2xl font-bold text-gray-800">門市店經理手冊系統</h2>
+            <p class="text-gray-500 mt-2">請輸入門市公務google帳號密碼登入</p>
         </div>
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">門市信箱 (Email)</label>
+                <label class="block text-sm font-medium text-gray-700">門市公務google信箱 (Email)</label>
                 <input type="email" id="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
             <div>
@@ -76,6 +76,13 @@
                     <h2 id="current-tab-title" class="text-2xl font-bold text-gray-800">請選擇表單</h2>
                     <p class="text-sm text-gray-500 mt-1">資料將安全加密同步至總部後台，店長與外人皆無法下載導出。</p>
                 </div>
+                
+                <!-- 👑 核心亮點：管理者專屬門市切換選單 (預設隱藏) -->
+                <div id="admin-switcher-zone" class="hidden flex items-center space-x-2 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl shadow-sm">
+                    <span class="text-sm font-bold text-amber-800">👑 總部最高權限模式：</span>
+                    <select id="admin-store-selector" onchange="handleAdminStoreChange()" class="p-1.5 bg-white border border-amber-300 rounded-lg text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
+                </div>
+
                 <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">💾 儲存本頁資料</button>
             </div>
 
@@ -107,8 +114,11 @@
         try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) { console.error(e); }
         
         let currentUserEmail = "";
+        let targetStoreEmail = ""; // 🎯 關鍵變數：目前正在編輯/查看的目標門市 Email
         let currentActiveFormId = "";
         let globalDataStore = {}; 
+        let isAdminMode = false;   // 👑 是否啟用管理者模式
+        let allStoresRows = [];    // 儲存撈出來的所有門市原始列資料
 
         function showCustomAlert(title, message, icon = "💡") {
             document.getElementById("modal-icon").innerText = icon;
@@ -120,7 +130,7 @@
         }
 
         function handleForgotPassword() {
-            showCustomAlert("忘記密碼提示", "為確保門市資安，請聯繫【總部教育訓練處主管】進行密碼核對與重設。", "💡");
+            showCustomAlert("忘記密碼提示", "為確保門市資安，請聯繫【總部教育中心#241~244】進行密碼核對與重設。", "💡");
         }
 
         window.toggleSidebarSection = function(sectionId) {
@@ -142,7 +152,12 @@
             try {
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) { showCustomAlert("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌"); resetLoginButton(); } 
-                else { currentUserEmail = data.user.email; enterDashboard(); }
+                else { 
+                    currentUserEmail = data.user.email;
+                    // 👑 偵測是否為最高管理員 Email
+                    isAdminMode = (currentUserEmail === 'admin@company.com');
+                    enterDashboard(); 
+                }
             } catch (err) { showCustomAlert("後台連線失敗！", err.message, "🚨"); resetLoginButton(); }
         });
 
@@ -163,19 +178,61 @@
             });
 
             try {
-                const { data } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
-                if (data) {
-                    document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
-                    globalDataStore = data.content ? JSON.parse(data.content) : {};
-                    renderFormEngine(window.FORMS_CONFIG[0].id);
+                if (isAdminMode) {
+                    // 👑 管理者模式：直接一口氣抓取所有門市列表！
+                    document.getElementById("admin-switcher-zone").classList.remove("hidden");
+                    const { data, error } = await supabaseClient.from('店經理手冊-帳密').select('*');
+                    if (error) throw error;
+                    
+                    allStoresRows = data || [];
+                    if(allStoresRows.length === 0) {
+                        showCustomAlert("總部提示", "目前後台資料表內沒有任何門市列，請先至 Supabase 新增門市資料！", "⚠️");
+                        return;
+                    }
+                    
+                    // 渲染右上方門市切換選單
+                    const selector = document.getElementById("admin-store-selector");
+                    selector.innerHTML = "";
+                    allStoresRows.forEach(store => {
+                        selector.innerHTML += `<option value="${store.manager_email}">🏪 ${store.store_name} (${store.manager_email})</option>`;
+                    });
+                    
+                    // 預設鎖定選單第一個門市
+                    loadSelectedStoreData(allStoresRows[0].manager_email);
+                } else {
+                    // 🏪 普通店長模式：維持原本的單店運作
+                    const { data } = await supabaseClient.from('店經理手冊-帳密').select('*').eq('manager_email', currentUserEmail).single();
+                    if (data) {
+                        document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
+                        targetStoreEmail = currentUserEmail;
+                        globalDataStore = data.content ? JSON.parse(data.content) : {};
+                        renderFormEngine(window.FORMS_CONFIG[0].id);
+                    }
                 }
             } catch(e) {
-                document.getElementById('welcome-title').innerText = `🏪 未知門市`;
-                renderFormEngine(window.FORMS_CONFIG[0].id);
+                showCustomAlert("系統錯誤", "無法讀取門市分配表，請確認 RLS 政策設定是否正確。\n" + e.message, "🚨");
             }
         }
 
-        // 🤖 修正核心：一次性完美渲染，絕不中途摧毀格子狀態
+        // 👑 管理者切換下拉選單觸發事件
+        window.handleAdminStoreChange = function() {
+            const selectedEmail = document.getElementById("admin-store-selector").value;
+            loadSelectedStoreData(selectedEmail);
+        }
+
+        // 👑 載入被選定門市的 JSON 數據
+        function loadSelectedStoreData(email) {
+            targetStoreEmail = email;
+            const storeRow = allStoresRows.find(r => r.manager_email === email);
+            if (storeRow) {
+                document.getElementById('welcome-title').innerText = `👑 檢視：${storeRow.store_name}`;
+                globalDataStore = storeRow.content ? JSON.parse(storeRow.content) : {};
+                // 刷新右側當前頁面
+                renderFormEngine(currentActiveFormId || window.FORMS_CONFIG[0].id);
+            }
+        }
+
+        // 自動渲染引擎
         function renderFormEngine(formId) {
             currentActiveFormId = formId;
             document.getElementById('panel-pdf').classList.add('hidden');
@@ -191,7 +248,6 @@
             engineContainer.innerHTML = "";
             const formData = globalDataStore[formId] || {};
 
-            // 1. 修正：區塊式填空題 (里長資料) - 先全面收集 HTML
             if(config.type === "grid_sections") {
                 let fullHtml = "";
                 config.sections.forEach((sec) => {
@@ -200,20 +256,14 @@
                         if(f.fullWidth) html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-form="${config.id}" data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
                         else html += `<div><label class="block text-sm font-medium text-gray-600">${f.label}</label><input type="text" data-form="${config.id}" data-field="${f.id}" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></div>`;
                     });
-                    html += `</div></div>`;
-                    fullHtml += html;
+                    html += `</div></div>`; fullHtml += html;
                 });
-                engineContainer.innerHTML = fullHtml; // 一次性渲染
-                
-                // 渲染完整完成後，再統一填入數值，絕不遺失狀態
+                engineContainer.innerHTML = fullHtml;
                 config.sections.forEach((sec) => {
-                    sec.fields.forEach(f => {
-                        if(formData[f.id]) engineContainer.querySelector(`[data-form="${config.id}"][data-field="${f.id}"]`).value = formData[f.id];
-                    });
+                    sec.fields.forEach(f => { if(formData[f.id]) engineContainer.querySelector(`[data-form="${config.id}"][data-field="${f.id}"]`).value = formData[f.id]; });
                 });
             }
 
-            // 2. 動態普通表格
             if(config.type === "dynamic_table") {
                 let html = `<div class="flex justify-end mb-3"><button onclick="addDynamicRow('${formId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded shadow cursor-pointer">➕ 新增資料列</button></div><div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 text-xs text-left whitespace-nowrap"><thead class="bg-gray-50 font-bold text-gray-700"><tr>`;
                 config.headers.forEach(h => html += `<th class="px-3 py-3">${h}</th>`);
@@ -226,7 +276,6 @@
                 } else { rowsData.forEach(rData => addDynamicRow(formId, rData)); }
             }
 
-            // 3. 修正：保先雙卡結構 - 同樣改為一次性渲染，防禦地雷
             if(config.type === "security_group") {
                 let fullHtml = "";
                 config.tables.forEach(t => {
@@ -241,15 +290,13 @@
                         <table class="min-w-full divide-y divide-gray-200 text-sm text-left"><thead class="bg-gray-50 font-bold text-gray-600"><tr><th class="px-4 py-2 w-20">序號</th><th class="px-4 py-2">持卡人</th><th class="px-4 py-2">電話/手機</th><th class="px-4 py-2 w-16 text-center">操作</th></tr></thead><tbody id="security-tbody-${t.id}" class="divide-y divide-gray-200"></tbody></table></div>`;
                     fullHtml += html;
                 });
-                engineContainer.innerHTML = fullHtml; // 一次性渲染
-                
+                engineContainer.innerHTML = fullHtml;
                 config.tables.forEach(t => {
                     let cardNo = formData[`${t.id}_no`] || "";
                     document.getElementById(`card-no-${t.id}`).value = cardNo;
                     let sRows = formData[`${t.id}_rows`] || [];
-                    if(sRows.length === 0) {
-                        for(let i=1; i<=t.defaultRows; i++) { addSecurityRow(t.id); }
-                    } else { sRows.forEach(r => addSecurityRow(t.id, r)); }
+                    if(sRows.length === 0) { for(let i=1; i<=t.defaultRows; i++) { addSecurityRow(t.id); } } 
+                    else { sRows.forEach(r => addSecurityRow(t.id, r)); }
                 });
             }
         }
@@ -289,9 +336,9 @@
             Array.from(tbody.children).forEach((tr, idx) => { tr.querySelector(".sec-idx").innerText = idx + 1; });
         }
 
-        // 儲存按鈕
+        // 💾 萬能儲存：會依據目前 targetStoreEmail 自動鎖定該店長欄位更新，管理者修改也適用！
         document.getElementById('btn-save').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-save'); btn.innerText = "⏳ 正在同步本頁...";
+            const btn = document.getElementById('btn-save'); btn.innerText = "⏳ 正在同步中...";
             const config = window.FORMS_CONFIG.find(f => f.id === currentActiveFormId);
             const pageData = {};
 
@@ -320,8 +367,17 @@
 
             globalDataStore[currentActiveFormId] = pageData;
             try {
-                const { error } = await supabaseClient.from('店經理手冊-帳密').update({ content: JSON.stringify(globalDataStore) }).eq('manager_email', currentUserEmail);
-                if (error) throw error; showCustomAlert("儲存成功！", "本頁資料已安全同步至總部！", "🎉");
+                // 🎯 核心工程思維：精準更新 targetStoreEmail 那一列
+                const { error } = await supabaseClient.from('店經理手冊-帳密').update({ content: JSON.stringify(globalDataStore) }).eq('manager_email', targetStoreEmail);
+                if (error) throw error;
+                
+                // 如果是管理者，順便同步更新記憶體中的緩存，防止切換時舊資料跑出來
+                if (isAdminMode) {
+                    const row = allStoresRows.find(r => r.manager_email === targetStoreEmail);
+                    if(row) row.content = JSON.stringify(globalDataStore);
+                }
+                
+                showCustomAlert("儲存成功！", "該門市此表單之最新資料已安全更新上雲端！", "🎉");
             } catch(err) { showCustomAlert("儲存失敗！", err.message, "❌"); } finally { btn.innerText = "💾 儲存本頁資料"; }
         });
 
