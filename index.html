@@ -31,7 +31,6 @@
                 <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
             
-            <!-- 補回並優化：忘記密碼按鈕位置與樣式 -->
             <div class="flex justify-end">
                 <button onclick="handleForgotPassword()" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">忘記密碼？</button>
             </div>
@@ -79,6 +78,20 @@
         </div>
     </div>
 
+    <!-- 🌟 自訂高階美化彈出視窗 (徹底隱藏英文網址、字體放大 100%) -->
+    <div id="custom-alert-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 transition-all">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-100 text-center space-y-5">
+            <!-- 放大圖示 -->
+            <div id="modal-icon" class="text-5xl">❌</div>
+            <!-- 大標題加粗加高 -->
+            <h3 id="modal-title" class="text-3xl font-black text-gray-800 tracking-wide">標題</h3>
+            <!-- 詳細內文放大與更舒適的行距 -->
+            <p id="modal-message" class="text-lg text-gray-600 leading-relaxed font-medium px-2">訊息內容</p>
+            <!-- 亮眼大按鈕 -->
+            <button id="modal-close-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 text-lg rounded-xl shadow-md cursor-pointer transition-all">確定</button>
+        </div>
+    </div>
+
     <script>
         // ⚠️ 請記得貼上你的 Supabase 密鑰
         const SUPABASE_URL = "https://ysvgdktjgzrgidqzlcgk.supabase.co";
@@ -88,47 +101,60 @@
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch(e) {
-            console.error("Supabase 初始化崩潰，通常是金鑰複製錯誤：", e);
+            console.error("Supabase 初始化錯誤：", e);
         }
         
         let currentUserEmail = "";
         let currentActiveFormId = "";
         let globalDataStore = {}; 
 
-        // 補回功能：忘記密碼處理函式
-        function handleForgotPassword() {
-            alert("💡 忘記密碼提示：\n\n為確保門市資安，請聯繫【總部教育訓練處主管】進行密碼核對與重設。");
+        // 🛠️ 替代傳統 alert() 的客製化大字體彈窗驅動函式
+        function showCustomAlert(title, message, icon = "💡") {
+            document.getElementById("modal-icon").innerText = icon;
+            document.getElementById("modal-title").innerText = title;
+            document.getElementById("modal-message").innerText = message;
+            
+            const modal = document.getElementById("custom-alert-modal");
+            modal.classList.remove("hidden");
+            
+            // 綁定點擊關閉按鈕事件
+            document.getElementById("modal-close-btn").onclick = function() {
+                modal.classList.add("hidden");
+            };
         }
 
-        // 登入按鈕事件 (升級：全面捕捉連線與帳密錯誤)
+        // 忘記密碼處理
+        function handleForgotPassword() {
+            showCustomAlert("忘記密碼提示", "為確保門市資安，請聯繫【總部教育訓練處主管】進行密碼核對與重設。", "💡");
+        }
+
+        // 登入按鈕事件
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const btn = document.getElementById('btn-login');
 
             if (!email || !password) {
-                alert("⚠️ 提示：請輸入完整的門市信箱與登入密碼！");
+                showCustomAlert("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️");
                 return;
             }
 
-            // 防呆機制啟動：改變按鈕狀態，避免店長以為沒按到
             btn.innerText = "⏳ 正在驗證登入...";
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
 
             try {
                 if (!supabaseClient) {
-                    throw new Error("資料庫連線核心未啟動，請檢查程式碼中的 URL 與金鑰設定是否正確。");
+                    throw new Error("資料庫連線核心未啟動，請檢查程式碼內設定。");
                 }
 
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 
                 if (error) {
-                    // 區分錯誤訊息，讓店長更容易看懂
                     if (error.message === 'Invalid login credentials' || error.status === 400) {
-                        alert("❌ 登入失敗！\n您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。");
+                        showCustomAlert("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌");
                     } else {
-                        alert(`❌ 登入遇到系統錯誤：\n${error.message}`);
+                        showCustomAlert("系統錯誤", error.message, "❌");
                     }
                     resetLoginButton();
                 } else {
@@ -136,14 +162,11 @@
                     enterDashboard();
                 }
             } catch (err) {
-                // 當後台網址斷線、金鑰填錯、或者完全連不上時，會引發實體崩潰，在此處攔截
-                console.error(err);
-                alert(`🚨 後台連線失敗！\n\n可能原因：\n1. 您的網路連線已斷開。\n2. 網頁程式碼中的 Project URL 或金鑰有漏複製、引號被刪除的情況。\n\n詳細錯誤回報：${err.message || err}`);
+                showCustomAlert("後台連線失敗！", `可能原因：\n1. 您的網路連線已斷開。\n2. 程式碼中的 Project URL 或金鑰複製不完整。\n\n詳細回報：${err.message || err}`, "🚨");
                 resetLoginButton();
             }
         });
 
-        // 重設登入按鈕外觀
         function resetLoginButton() {
             const btn = document.getElementById('btn-login');
             btn.innerText = "登入系統";
@@ -157,7 +180,6 @@
             document.getElementById('main-dashboard').classList.remove('hidden');
             document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
 
-            // 建立左側選單
             const menuContainer = document.getElementById("sidebar-menu-container");
             menuContainer.innerHTML = "";
             window.FORMS_CONFIG.forEach((form) => {
@@ -174,7 +196,7 @@
                     renderFormEngine(window.FORMS_CONFIG[0].id);
                 }
             } catch(e) {
-                alert(`⚠️ 注意：成功登入，但無法讀取門市分配表！\n請確認 Supabase Table 內是否有配置對應您這組 Email (${currentUserEmail}) 的店名資料列。`);
+                showCustomAlert("注意！", `成功登入帳號，但未能在後台找到配置對應您這組 Email (${currentUserEmail}) 的店名資料列。`, "⚠️");
                 document.getElementById('welcome-title').innerText = `🏪 未知門市`;
                 globalDataStore = {};
                 renderFormEngine(window.FORMS_CONFIG[0].id);
@@ -192,7 +214,7 @@
             if(activeBtn) activeBtn.className = activeBtn.className.replace("text-gray-300 hover:bg-gray-800", "bg-indigo-600 text-white font-medium");
 
             const config = window.FORMS_CONFIG.find(f => f.id === formId);
-            document.getElementById("custom-tab-title", document.getElementById("current-tab-title").innerText = config.title);
+            document.getElementById("current-tab-title").innerText = config.title;
             
             const engineContainer = document.getElementById("dynamic-form-render-engine");
             engineContainer.innerHTML = "";
@@ -205,7 +227,6 @@
                         <div class="font-bold text-gray-800 border-b border-gray-100 pb-2 text-md flex items-center space-x-1"><span>${sec.name}</span></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
                     sec.fields.forEach(f => {
-                        let val = formData[f.id] || "";
                         if(f.fullWidth) {
                             html += `<div class="md:col-span-2"><label class="block text-sm font-medium text-gray-600">${f.label}</label><textarea data-field="${f.id}" rows="2" class="dynamic-input mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:bg-white"></textarea></div>`;
                         } else {
@@ -215,7 +236,6 @@
                     html += `</div></div>`;
                     engineContainer.innerHTML += html;
                     
-                    // 填入數值
                     sec.fields.forEach(f => {
                         let val = formData[f.id] || "";
                         const el = engineContainer.querySelector(`[data-field="${f.id}"]`);
@@ -239,7 +259,6 @@
                 html += `</tbody></table></div>`;
                 engineContainer.innerHTML += html;
                 
-                // 填入數值
                 config.rows.forEach((rowName, rIdx) => {
                     for(let cIdx=1; cIdx<config.headers.length; cIdx++) {
                         let key = `row_${rIdx}_cell_${cIdx}`;
@@ -277,7 +296,6 @@
                     html += `</tbody></table></div>`;
                     engineContainer.innerHTML += html;
                     
-                    // 還原數值
                     let cardNo = formData[`${t.id}_no`] || "";
                     document.getElementById(`card-no-${t.id}`).value = cardNo;
                     for(let i=1; i<=t.rowCount; i++) {
@@ -355,9 +373,9 @@
             try {
                 const { error } = await supabaseClient.from('店經理手冊-帳密').update({ content: JSON.stringify(globalDataStore) }).eq('manager_email', currentUserEmail);
                 if (error) throw error;
-                alert("🎉 本頁檔案已自動加密同步至總部！");
+                showCustomAlert("儲存成功！", "本店此表單資料已安全加密同步至總部！", "🎉");
             } catch(err) {
-                alert(`❌ 儲存失敗！\n錯誤回報：${err.message || err}`);
+                showCustomAlert("儲存失敗！", `錯誤回報：${err.message || err}`, "❌");
             } finally {
                 btn.innerText = "💾 儲存本頁資料";
             }
