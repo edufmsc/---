@@ -8,9 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- 引入 Supabase 官方最新版核心套件 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 引入網頁版 Word 編輯器 (Quill) -->
-    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
 
@@ -29,8 +26,13 @@
                 <label class="block text-sm font-medium text-gray-700">登入密碼 (Password)</label>
                 <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="••••••••">
             </div>
+            
+            <!-- 1.2 優化：忘記密碼選項 -->
+            <div class="flex justify-end">
+                <button onclick="handleForgotPassword()" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">忘記密碼？</button>
+            </div>
+
             <button id="btn-login" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">登入系統</button>
-            <p id="login-error" class="text-red-500 text-sm text-center hidden">帳號或密碼錯誤，請重新輸入</p>
         </div>
     </div>
 
@@ -41,7 +43,8 @@
             <div class="p-5">
                 <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6">讀取中...</h1>
                 <nav class="space-y-2">
-                    <button onclick="switchTab('home')" class="tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium">🏠 店務紀錄填報</button>
+                    <!-- 2.1 優化：原店務日誌修改，更名為線上Excel填報 -->
+                    <button onclick="switchTab('home')" class="tab-btn w-full text-left px-4 py-2 rounded bg-indigo-600 text-white font-medium">📊 門市專屬 Excel 填報</button>
                     <div class="text-xs text-gray-400 font-bold px-4 pt-4 pb-1 uppercase tracking-wider">📚 5大通用唯讀手冊</div>
                     <button onclick="switchTab('sop1')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 01_服務流程SOP</button>
                     <button onclick="switchTab('sop2')" class="tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800">📄 02_設備故障排除</button>
@@ -57,18 +60,15 @@
 
         <!-- 右側內容顯示區 -->
         <div class="flex-1 bg-gray-50 p-8 overflow-y-auto">
-            <!-- A. 店務填報分頁 -->
-            <div id="tab-home" class="tab-content space-y-4">
-                <div class="flex justify-between items-center border-b border-gray-200 pb-4">
-                    <div>
-                        <h2 class="text-2xl font-bold text-gray-800">店務日誌與範本修改</h2>
-                        <p class="text-sm text-gray-500 mt-1">您在此處輸入的內容會即時存檔，其他門市絕對無法檢視。</p>
-                    </div>
-                    <button id="btn-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow font-medium cursor-pointer">💾 儲存今日紀錄</button>
+            <!-- 2.1 優化：店務 Excel 填報分頁 (內嵌該店專屬 Google Sheet) -->
+            <div id="tab-home" class="tab-content h-full flex flex-col space-y-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">門市專屬試算表填報</h2>
+                    <p class="text-sm text-gray-500 mt-1">您在此處修改的內容會自動同步儲存，其他門市無法檢視與修改。</p>
                 </div>
-                <!-- Word 編輯器容器 -->
-                <div class="bg-white rounded-lg shadow border border-gray-200">
-                    <div id="editor" class="h-[60vh] text-lg"></div>
+                <div class="flex-1 bg-white border border-gray-300 rounded-lg shadow">
+                    <!-- 動態載入該店專屬 Excel -->
+                    <iframe id="excel-viewer" class="w-full h-full rounded-lg" src="" frameborder="0"></iframe>
                 </div>
             </div>
 
@@ -84,30 +84,28 @@
 
     <!-- 3. 前端核心邏輯控制 -->
     <script>
-        // ⚠️ 記得在這裡重新貼上你的 Supabase 亂碼金鑰（保留雙引號）
-        const SUPABASE_URL = "https://ysvgdktjgzrgidqzlcgk.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
+        // ⚠️ 記得在這裡貼上你的 Supabase 亂碼金鑰（保留雙引號）
+        const SUPABASE_URL = "在此處貼上你的Project URL";
+        const SUPABASE_ANON_KEY = "在此處貼上你的anon public金鑰";
         
-        // 修正點：重新命名變數為 supabaseClient，徹底解決宣告衝突錯誤！
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let quill;
         let currentUserEmail = "";
 
-        // 初始化 Word 編輯器
-        document.addEventListener("DOMContentLoaded", () => {
-            quill = new Quill('#editor', { theme: 'snow', placeholder: '在此處輸入或修改您的門市紀錄...' });
-        });
+        // 1.2 優化：忘記密碼暫代機制
+        function handleForgotPassword() {
+            alert("💡 忘記密碼提示：\n\n為確保門市資安，請聯繫【總部教育訓練主管】進行密碼重設與身份核對。");
+        }
 
         // 登入按鈕事件
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const errorTxt = document.getElementById('login-error');
 
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
-                errorTxt.classList.remove('hidden');
+                // 1.1 優化：帳密錯誤跳出視窗提醒
+                alert("❌ 登入失敗！\n您輸入的帳號或密碼有誤，請重新檢查大小寫。");
             } else {
                 currentUserEmail = data.user.email;
                 enterDashboard();
@@ -129,33 +127,17 @@
 
             if (data) {
                 document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
-                if (data.content) {
-                    quill.clipboard.dangerouslyPasteHTML(data.content);
+                
+                // 2.1 優化：動態將該店專屬的 Excel 網址塞進內嵌視窗
+                if (data.excel_url) {
+                    document.getElementById('excel-viewer').src = data.excel_url;
+                } else {
+                    alert("總部尚未配置您的專屬 Excel 試算表，請聯繫教育訓練處。");
                 }
             } else {
                 document.getElementById('welcome-title').innerText = `🏪 未知門市`;
             }
         }
-
-        // 儲存按鈕事件
-        document.getElementById('btn-save').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-save');
-            btn.innerText = "⏳ 正在存檔...";
-            const htmlContent = quill.getSemanticHTML();
-
-            const { error } = await supabaseClient
-                .from('店經理手冊-帳密')
-                .update({ content: htmlContent })
-                .eq('manager_email', currentUserEmail);
-
-            if (error) {
-                alert("儲存失敗，請檢查網絡或後台權限！");
-                btn.innerText = "💾 儲存今日紀錄";
-            } else {
-                alert("🎉 存檔成功！資料已安全同步至總部後台。");
-                btn.innerText = "💾 儲存今日紀錄";
-            }
-        });
 
         // 登出事件
         document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -178,6 +160,7 @@
                 const pdfViewer = document.getElementById('pdf-viewer');
                 const pdfTitle = document.getElementById('pdf-title');
                 
+                // 這裡可以換成你放在 Google 5TB 雲端硬碟手冊的「唯讀分享連結」
                 if (tabName === 'sop1') { pdfTitle.innerText = "📄 01_服務流程SOP"; pdfViewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
                 if (tabName === 'sop2') { pdfTitle.innerText = "📄 02_設備故障排除"; pdfViewer.src = ""; }
                 if (tabName === 'sop3') { pdfTitle.innerText = "📄 03_人事考勤管理"; pdfViewer.src = ""; }
