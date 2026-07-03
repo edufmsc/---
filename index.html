@@ -72,11 +72,10 @@
                 </div>
             </div>
 
-            <!-- B. PDF 手冊檢視分頁 (利用 iframe 嵌入技術，點擊左邊按鈕動態切換網址) -->
+            <!-- B. PDF 手冊檢視分頁 -->
             <div id="tab-pdf" class="tab-content hidden h-full flex flex-col">
                 <h2 id="pdf-title" class="text-2xl font-bold text-gray-800 mb-4">手冊檢視</h2>
                 <div class="flex-1 bg-white border border-gray-300 rounded shadow">
-                    <!-- 這裡未來可以直接放入你放在公司 5TB 雲端硬碟的 PDF 唯讀分享網址 -->
                     <iframe id="pdf-viewer" class="w-full h-full rounded" src="" frameborder="0"></iframe>
                 </div>
             </div>
@@ -85,11 +84,12 @@
 
     <!-- 3. 前端核心邏輯控制 -->
     <script>
-        // 注意：這裡的密鑰稍後部署到 Vercel 時會被安全代換，現在先用前端變數接收
-        const SUPABASE_URL = window.env?.SUPABASE_URL || "https://ysvgdktjgzrgidqzlcgk.supabase.co";
-        const SUPABASE_ANON_KEY = window.env?.SUPABASE_ANON_KEY || "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
+        // ⚠️ 記得在這裡重新貼上你的 Supabase 亂碼金鑰（保留雙引號）
+        const SUPABASE_URL = "在此處貼上你的Project URL";
+        const SUPABASE_ANON_KEY = "在此處貼上你的anon public金鑰";
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // 修正點：重新命名變數為 supabaseClient，徹底解決宣告衝突錯誤！
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let quill;
         let currentUserEmail = "";
 
@@ -104,7 +104,7 @@
             const password = document.getElementById('password').value;
             const errorTxt = document.getElementById('login-error');
 
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
                 errorTxt.classList.remove('hidden');
@@ -120,8 +120,8 @@
             document.getElementById('login-card').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
 
-            // 去後台資料表「店經理手冊-帳密」撈取專屬這家店的資料
-            const { data, error } = await supabase
+            // 自動撈取對應表格資料
+            const { data, error } = await supabaseClient
                 .from('店經理手冊-帳密')
                 .select('*')
                 .eq('manager_email', currentUserEmail)
@@ -129,7 +129,6 @@
 
             if (data) {
                 document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
-                // 將資料庫裡的 Word 內容塞進編輯器
                 if (data.content) {
                     quill.clipboard.dangerouslyPasteHTML(data.content);
                 }
@@ -142,16 +141,15 @@
         document.getElementById('btn-save').addEventListener('click', async () => {
             const btn = document.getElementById('btn-save');
             btn.innerText = "⏳ 正在存檔...";
-            const htmlContent = quill.getSemanticHTML(); // 抓取帶有排版的 HTML 內容
+            const htmlContent = quill.getSemanticHTML();
 
-            // 透過 RLS 規則安全地更新屬於自己的那一列
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('店經理手冊-帳密')
                 .update({ content: htmlContent })
                 .eq('manager_email', currentUserEmail);
 
             if (error) {
-                alert("儲存失敗，請檢查網路連線！");
+                alert("儲存失敗，請檢查網絡或後台權限！");
                 btn.innerText = "💾 儲存今日紀錄";
             } else {
                 alert("🎉 存檔成功！資料已安全同步至總部後台。");
@@ -161,11 +159,11 @@
 
         // 登出事件
         document.getElementById('btn-logout').addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.reload();
         });
 
-        // 前台頁面動態切換邏輯
+        // 頁面切換邏輯
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => el.className = "tab-btn w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-800");
@@ -180,8 +178,6 @@
                 const pdfViewer = document.getElementById('pdf-viewer');
                 const pdfTitle = document.getElementById('pdf-title');
                 
-                // 這裡可以換成你放在 Google 5TB 雲端硬碟手冊的「唯讀分享連結」
-                // 提示：Google Drive 的預覽網址格式需為 https://drive.google.com/file/d/你的檔案ID/preview
                 if (tabName === 'sop1') { pdfTitle.innerText = "📄 01_服務流程SOP"; pdfViewer.src = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"; }
                 if (tabName === 'sop2') { pdfTitle.innerText = "📄 02_設備故障排除"; pdfViewer.src = ""; }
                 if (tabName === 'sop3') { pdfTitle.innerText = "📄 03_人事考勤管理"; pdfViewer.src = ""; }
