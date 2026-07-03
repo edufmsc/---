@@ -225,7 +225,15 @@
             // 建立強制關閉機制 (5秒防死鎖)
             const safetyTimer = setTimeout(() => {
                 console.warn("⚠️ [Debug] 啟動強制逾時防禦，遮罩將消失");
-                document.getElementById('loading-overlay').classList.add('hidden');
+                } finally {
+                // 🌟 核心修正：直接強制刪除該元件，比隱藏更保險
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none'; // 強制樣式隱藏
+                    overlay.remove();              // 直接從網頁中移除該元件
+                }
+                clearTimeout(safetyTimer);
+            }
             }, 5000);
 
             try {
