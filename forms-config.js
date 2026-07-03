@@ -1,4 +1,4 @@
-// 門市日常表單規格說明書 - 折疊式窗優化版
+// 門市日常 10 大表單的「規格說明書」- 左側摺疊專用版
 window.FORMS_CONFIG = [
   {
     id: "personnel",
@@ -13,7 +13,7 @@ window.FORMS_CONFIG = [
       { key: "home", type: "text" },
       { key: "memo", type: "text" }
     ],
-    // 2.1 優化：預設一定要出現的 8 大標準幹部欄位
+    // 預設自動鋪滿的 8 大靈魂幹部
     presets: ["處主管", "區主管", "店經理", "店副理", "店副理", "店副理", "代班店襄理", "代班店襄理"]
   },
   {
@@ -42,7 +42,7 @@ window.FORMS_CONFIG = [
     icon: "🔑",
     type: "security_group",
     tables: [
-      // 2.2 優化：明確認定預留 6 行空白格
+      // 預留 6 行空白格供直接輸入
       { id: "sec_1", name: "🔒 主系統店卡持有明細", cardLabel: "主系統店卡號", defaultRows: 6 },
       { id: "sec_2", name: "💰 金庫卡持有明細", cardLabel: "金庫卡號", defaultRows: 6 }
     ]
