@@ -1,23 +1,20 @@
-// 門市日常 10 大表單的「規格說明書」- 優化調整版
+// 門市日常表單規格說明書 - 折疊式窗優化版
 window.FORMS_CONFIG = [
   {
     id: "personnel",
     title: "01. 門市幹部通訊錄",
     icon: "👥",
-    type: "dynamic_table", // 1.3 優化：改為動態表格，支援自由自由增減人員
+    type: "dynamic_table",
     headers: ["職稱", "姓名", "手機", "住家電話", "備註"],
     fields: [
-      { 
-        key: "role", 
-        type: "select", 
-        options: ["處主管", "區主管", "店經理", "店副理", "代班店襄理"] // 1.3 優化：職稱改為下拉選單與指定順序
-      },
+      { key: "role", type: "select", options: ["處主管", "區主管", "店經理", "店副理", "代班店襄理"] },
       { key: "name", type: "text" },
       { key: "phone", type: "text" },
       { key: "home", type: "text" },
       { key: "memo", type: "text" }
-    ]
-    // 1.2 優化：已徹底刪除黃達昌等預設文字
+    ],
+    // 2.1 優化：預設一定要出現的 8 大標準幹部欄位
+    presets: ["處主管", "區主管", "店經理", "店副理", "店副理", "店副理", "代班店襄理", "代班店襄理"]
   },
   {
     id: "cards",
@@ -43,10 +40,11 @@ window.FORMS_CONFIG = [
     id: "security",
     title: "03. 保全卡與金庫卡持有明細",
     icon: "🔑",
-    type: "security_group", // 保持專屬雙表格外觀，但主程式已升級支援動態加減人
+    type: "security_group",
     tables: [
-      { id: "sec_1", name: "🔒 主系統店卡持有明細", cardLabel: "主系統店卡號" },
-      { id: "sec_2", name: "💰 金庫卡持有明細", cardLabel: "金庫卡號" }
+      // 2.2 優化：明確認定預留 6 行空白格
+      { id: "sec_1", name: "🔒 主系統店卡持有明細", cardLabel: "主系統店卡號", defaultRows: 6 },
+      { id: "sec_2", name: "💰 金庫卡持有明細", cardLabel: "金庫卡號", defaultRows: 6 }
     ]
   },
   {
