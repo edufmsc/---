@@ -17,10 +17,20 @@
         .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
         /* 唯獨放行輸入框、文本框與下拉選單，讓經理在格子內可以正常輸入打字與點選單 */
         input, textarea, select { user-select: text !important; }
+        /* --- 以下是轉圈圈 CSS --- */
+        #loading-overlay { position: fixed; inset: 0; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* --- 以上是轉圈圈 CSS --- */
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans no-select" oncontextmenu="return false;">
-
+    <!-- 🌟 轉圈圈遮罩開始 -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="text-gray-500 font-bold tracking-widest">系統安全連接中...</div>
+    </div>
+    <!-- 🌟 轉圈圈遮罩結束 -->
     <!-- =================================================================================== -->
     <!-- 🚪 【功能大項 2：獨立門市安全登入介面】                                               -->
     <!-- =================================================================================== -->
@@ -209,20 +219,25 @@
 
         // ===================================================================================
         // 🔄 【大項功能 5：F5 重新整理自動登入防失憶線路 + 資安追蹤紀錄】
-        // ===================================================================================
         window.addEventListener('DOMContentLoaded', async () => {
-            if (!supabaseClient) return;
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session && session.user) {
-                currentUserEmail = session.user.email;
-                await recordOperationLog("F5 重新整理重新載入，系統成功自動恢復連線狀態");
-                enterDashboard(); 
-            } else {
-                document.getElementById('main-dashboard').classList.add('hidden');
-                document.getElementById('login-card').classList.remove('hidden');
+            try {
+                if (!supabaseClient) return;
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    currentUserEmail = session.user.email;
+                    await recordOperationLog("F5 重新整理重新載入，系統成功自動恢復連線狀態");
+                    await enterDashboard(); 
+                } else {
+                    document.getElementById('main-dashboard').classList.add('hidden');
+                    document.getElementById('login-card').classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("載入失敗", e);
+            } finally {
+                // 🌟 核心：系統跑完驗證後，強制將轉圈圈遮罩隱藏
+                document.getElementById('loading-overlay').classList.add('hidden');
             }
         });
-
         // 🛠  自訂雙模彈窗
         function customPopupDriver(title, message, icon = "💡", isConfirm = false, onConfirm = null, onCancel = null) {
             document.getElementById("modal-icon").innerText = icon;
