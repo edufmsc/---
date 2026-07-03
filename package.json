@@ -1,4 +1,5 @@
 {
+  "description": "門市店經理數位管理系統之專案依賴管理與腳本配置檔",
   "name": "store-manager-system",
   "version": "2.5.0",
   "private": true,
