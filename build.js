@@ -9,14 +9,20 @@ const minify = require('html-minifier').minify;
 function compileSystem() {
     try {
         console.log("⏳ 機器人啟動：正在讀取含有【小白調整區】的 source.html 母體大腦...");
-        const rawHtml = fs.readFileSync('source.html', 'utf8');
+        let rawHtml = fs.readFileSync('source.html', 'utf8');
+        
+        console.log("🔐 正在注入安全環境變數...");
+        // 核心邏輯：自動抓取 Vercel 保險箱的變數，填入 HTML 中的佔位符
+        rawHtml = rawHtml.replace(/%%SUPABASE_URL%%/g, process.env.SUPABASE_URL || "");
+        rawHtml = rawHtml.replace(/%%SUPABASE_ANON_KEY%%/g, process.env.SUPABASE_ANON_KEY || "");
         
         console.log("🧹 正在進行企業級大清洗：全面拔除中文備註、壓縮程式碼空間...");
         // 啟動資安防禦壓縮
         const cleanHtml = minify(rawHtml, {
-            removeComments: true,         // 🎯 核心：全自動拔除所有 collapseWhitespace: true,     // 🎯 核心：消除所有換行與空白，壓縮成一行天書
-            minifyJS: true,               // 🎯 核心：連動壓縮鎖死 <script> 內部的 // 與 /* */ 註解
-            minifyCSS: true               // 🎯 核心：連動壓縮 <style> 內部的排版樣式
+            removeComments: true,           // 🎯 核心：全自動拔除所有註解
+            collapseWhitespace: true,       // 🎯 核心：消除所有換行與空白，壓縮成一行天書
+            minifyJS: true,                 // 🎯 核心：連動壓縮 <script> 內部的 // 與 /* */ 註解
+            minifyCSS: true                 // 🎯 核心：連動壓縮 <style> 內部的排版樣式
         });
         
         // 將清洗完畢、毫無痕跡的代碼輸出成 index.html 給店長使用
