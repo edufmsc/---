@@ -153,10 +153,10 @@
 
     <script>
         // ===================================================================================
-        // ⚙️ 【【 小白調整區 1：後台資料庫連線核心金鑰 】】
+        // ⚙️ 【【 小白調整區 1：後台資料庫連線核心金鑰 (由編譯器自動填入) 】】
         // ===================================================================================
-        const SUPABASE_URL = "https://ysvgdktjgzrgidqzlcgk.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_1Qx359hY0FiZiFv8VXbM7w_MQsQqibT";
+        const SUPABASE_URL = "%%SUPABASE_URL%%";
+        const SUPABASE_ANON_KEY = "%%SUPABASE_ANON_KEY%%";
         
         let supabaseClient;
         try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e) { console.error(e); }
