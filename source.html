@@ -888,6 +888,7 @@
                     factorId: currentFactorId, challengeId: challenge.data.id, code: code
                 });
                 if (verify.error) throw new Error("驗證碼錯誤");
+               await recordOperationLog("帳號安全：成功啟用並綁定 MFA 雙重驗證");
                 customPopupDriver("綁定成功！", "以後登入系統時，請準備好手機驗證碼。", "🎉");
                 document.getElementById('mfa-qr-container').classList.add('hidden');
             } catch (err) { customPopupDriver("綁定驗證失敗", err.message, "❌"); }
