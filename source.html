@@ -243,6 +243,20 @@
                 console.error("🔒 [系統日誌異常]:", logErr);
             }
         }
+      // 🚨 系統錯誤專用記錄器
+async function logSystemError(errorType, errorMessage, context = {}) {
+    if (!supabaseClient) return;
+    try {
+        await supabaseClient.from('門市操作日誌').insert([{
+            operator_email: typeof currentUserEmail !== 'undefined' ? currentUserEmail : "未登入訪客",
+            action_type: `【系統異常】${errorType}`,
+            ip_address: window.globalUserIP || "unknown",
+            content: `錯誤詳情：${errorMessage} | 上下文：${JSON.stringify(context)}`
+        }]);
+    } catch (e) {
+        console.error("無法寫入錯誤日誌:", e);
+    }
+}
 
         // ===================================================================================
        // 🔄 【大項功能 5：F5 重新整理自動登入防失憶線路 + 資安追蹤紀錄】
@@ -266,7 +280,7 @@
                     document.getElementById('login-card').classList.remove('hidden');
                 }
             } catch (e) {
-                console.error("載入失敗", e);
+              await logSystemError("Dashboard載入失敗", e.message, { email: currentUserEmail });
             } finally {
                 // 🌟 核心：清除計時器並強制移除遮罩
                 clearTimeout(safetyTimer);
@@ -382,6 +396,7 @@
                 currentUserEmail = data.user.email;
                 enterDashboard(); 
             } catch (err) { 
+                await logSystemError("登入失敗", err.message, { email: email });
                 await supabaseClient.auth.signOut();
                 customPopupDriver("登入狀態異常", err.message, "❌"); 
                 resetLoginButton(); 
@@ -881,7 +896,6 @@ async function checkMfaStatus() {
                         await supabaseClient.auth.mfa.unenroll({ factorId: factor.id });
                     }
                 }
-
                 // 2. 開始新註冊
                 const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
                 if (error) throw error;
@@ -929,6 +943,17 @@ async function checkMfaStatus() {
         customPopupDriver("綁定驗證失敗", err.message, "❌"); 
     }
 }
+      // 🛡️ 全域錯誤監聽器 (最後一道防線)
+window.onerror = function (message, source, lineno, colno, error) {
+    // 只有在登入後才記錄，避免在登入前報錯導致無效紀錄
+    if (currentUserEmail) {
+        logSystemError("全域未預期錯誤", message, { 
+            source: source, 
+            line: lineno,
+            col: colno
+        });
+    }
+};
     </script>
 </body>
 </html>
