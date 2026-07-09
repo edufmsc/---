@@ -882,16 +882,29 @@
         async function verifyMfaEnroll() {
             const code = document.getElementById('mfa-verify-code').value.trim();
             if (!code) return alert("請輸入驗證碼");
+            
             try {
+                // 1. 產生驗證挑戰
                 const challenge = await supabaseClient.auth.mfa.challenge({ factorId: currentFactorId });
+                
+                // 2. 進行驗證
                 const verify = await supabaseClient.auth.mfa.verify({
-                    factorId: currentFactorId, challengeId: challenge.data.id, code: code
+                    factorId: currentFactorId,challengeId: challenge.data.id,code: code
                 });
+                
                 if (verify.error) throw new Error("驗證碼錯誤");
-               await recordOperationLog("帳號安全：成功啟用並綁定 MFA 雙重驗證");
+                
+                // 3. 寫入日誌 (這一行一定要加 await，確保寫入完成)
+                await recordOperationLog("帳號安全：成功啟用並綁定 MFA 雙重驗證");
+                
+                // 4. 顯示成功訊息
                 customPopupDriver("綁定成功！", "以後登入系統時，請準備好手機驗證碼。", "🎉");
                 document.getElementById('mfa-qr-container').classList.add('hidden');
-            } catch (err) { customPopupDriver("綁定驗證失敗", err.message, "❌"); }
+                
+            } catch (err) { 
+                // 綁定失敗會直接跳出視窗告訴你原因
+                customPopupDriver("綁定驗證失敗", err.message, "❌"); 
+            }
         }
     </script>
 </body>
