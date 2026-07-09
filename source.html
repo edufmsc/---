@@ -113,6 +113,7 @@
 
             </div>
             <div class="p-5 border-t border-gray-800">
+                <button onclick="document.getElementById('mfa-setup-panel').classList.remove('hidden')" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm mb-2 cursor-pointer">🛡️ 帳號安全設定</button>
                 <button id="btn-logout" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm cursor-pointer">登出系統</button>
             </div>
         </div>
@@ -137,6 +138,20 @@
 
             <!-- 🖨️ 右側表格彩繪引擎投射區 -->
             <div id="dynamic-form-render-engine" class="flex-1"></div>
+          <div id="mfa-setup-panel" class="hidden bg-white p-8 rounded-xl shadow-sm border border-gray-200 mt-6">
+    <h3 class="font-bold text-xl mb-4 text-gray-800">🛡️ 帳號安全：啟用雙重驗證 (MFA)</h3>
+    <p class="text-sm text-gray-600 mb-4">啟用後，登入時需輸入手機 Authenticator App 產生的驗證碼，資安防護更全面。</p>
+    
+    <button id="btn-enroll" onclick="startMfaEnroll()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow font-medium cursor-pointer transition">啟用雙重驗證</button>
+    
+    <div id="mfa-qr-container" class="hidden mt-6 border-t pt-4">
+        <p class="font-bold text-gray-700">1. 使用 App 掃描此 QR Code：</p>
+        <img id="mfa-qr-code" src="" alt="QR Code" class="my-4 border p-2 w-48 h-48">
+        <p class="font-bold text-gray-700 mt-4">2. 輸入 App 上的 6 位驗證碼：</p>
+        <input type="text" id="mfa-verify-code" placeholder="請輸入 6 位數字" class="mt-2 block w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+        <button onclick="verifyMfaEnroll()" class="mt-4 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium cursor-pointer transition">確認綁定</button>
+    </div>
+</div>
             <!-- 右側 PDF 手冊投放區 -->
             <div id="panel-pdf" class="tab-panel hidden h-[70vh] bg-white border border-gray-300 rounded-xl shadow-sm">
                 <iframe id="pdf-viewer" class="w-full h-full rounded-xl" src="" frameborder="0"></iframe>
@@ -330,64 +345,43 @@
         function panelPdfActive() { return !document.getElementById('panel-pdf').classList.contains('hidden'); }
         function bindInputDirtyTracker() { isDirty = true; } 
 
-      // 🔐 登入驗證
+     // 🔐 登入驗證 (精簡版)
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
-            const otpCode = document.getElementById('otp').value.trim(); // 取得 OTP 輸入
+            const otpCode = document.getElementById('otp').value.trim();
             const btn = document.getElementById('btn-login');
 
-            if (!email || !password) { customPopupDriver("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️"); return; }
+            if (!email || !password) return customPopupDriver("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️");
             
-            btn.innerText = "⏳ 正在驗證登入..."; btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.innerText = "⏳ 正在驗證..."; btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed');
             
             try {
-                // 1. 原始登入邏輯
+                // 1. 基本帳密登入
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) { 
-                    customPopupDriver("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌"); 
-                    resetLoginButton(); 
-                    return;
-                } 
+                if (error) throw new Error("您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。");
 
-                // 2. [MFA 檢查哨] 檢查該帳號是否啟用了雙重驗證
+                // 2. [MFA 檢查哨] 若有綁定，強制驗證 OTP
                 const { data: factors, error: factorsError } = await supabaseClient.auth.mfa.listFactors();
                 if (factorsError) throw factorsError;
                 
                 const totpFactors = factors.totp || [];
-                const hasMfa = totpFactors.length > 0;
-
-                if (hasMfa) {
-                    // 如果有綁定，檢查是否輸入了 OTP
-                    if (!otpCode) {
-                        await supabaseClient.auth.signOut(); // 強制登出以防未驗證進入
-                        customPopupDriver("安全提示", "此帳號已綁定雙重驗證，請輸入 OTP 代碼！", "🔒");
-                        resetLoginButton();
-                        return;
-                    }
+                if (totpFactors.length > 0) {
+                    if (!otpCode) throw new Error("此帳號已綁定雙重驗證，請輸入 OTP 代碼！");
                     
-                    // 執行驗證
                     const challenge = await supabaseClient.auth.mfa.challenge({ factorId: totpFactors[0].id });
                     const verify = await supabaseClient.auth.mfa.verify({
-                        factorId: totpFactors[0].id,
-                        challengeId: challenge.data.id,
-                        code: otpCode
+                        factorId: totpFactors[0].id, challengeId: challenge.data.id, code: otpCode
                     });
-
-                    if (verify.error) {
-                        await supabaseClient.auth.signOut();
-                        customPopupDriver("驗證失敗", "OTP 代碼錯誤，請確認 App 上的數字。", "❌");
-                        resetLoginButton();
-                        return;
-                    }
+                    if (verify.error) throw new Error("OTP 代碼錯誤，請確認 App 上的數字。");
                 }
                 
-                // 3. 原有成功後的邏輯
+                // 3. 登入成功
                 currentUserEmail = data.user.email;
                 enterDashboard(); 
-
             } catch (err) { 
-                customPopupDriver("後台連線失敗！", err.message, "🚨"); 
+                await supabaseClient.auth.signOut();
+                customPopupDriver("登入狀態異常", err.message, "❌"); 
                 resetLoginButton(); 
             }
         });
@@ -870,6 +864,34 @@
             if (supabaseClient) { await supabaseClient.auth.signOut(); }
             window.location.reload(); 
         });
+      // 🛡️ MFA 綁定功能
+        let currentFactorId = "";
+
+        async function startMfaEnroll() {
+            try {
+                const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+                if (error) throw error;
+                currentFactorId = data.id;
+                document.getElementById('mfa-qr-code').src = data.totp.qr_code;
+                document.getElementById('mfa-qr-container').classList.remove('hidden');
+                document.getElementById('btn-enroll').classList.add('hidden');
+                alert("復原碼 (請務必截圖保存)：" + data.totp.recovery_codes.join(", "));
+            } catch (err) { customPopupDriver("綁定失敗", err.message, "❌"); }
+        }
+
+        async function verifyMfaEnroll() {
+            const code = document.getElementById('mfa-verify-code').value.trim();
+            if (!code) return alert("請輸入驗證碼");
+            try {
+                const challenge = await supabaseClient.auth.mfa.challenge({ factorId: currentFactorId });
+                const verify = await supabaseClient.auth.mfa.verify({
+                    factorId: currentFactorId, challengeId: challenge.data.id, code: code
+                });
+                if (verify.error) throw new Error("驗證碼錯誤");
+                customPopupDriver("綁定成功！", "以後登入系統時，請準備好手機驗證碼。", "🎉");
+                document.getElementById('mfa-qr-container').classList.add('hidden');
+            } catch (err) { customPopupDriver("綁定驗證失敗", err.message, "❌"); }
+        }
     </script>
 </body>
 </html>
