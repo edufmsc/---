@@ -396,10 +396,27 @@
         // ===================================================================================
         // 🔐 【功能大項 11：解鎖面板與彩繪初始化（🌟 安全載入完成才允許解鎖畫面外殼）】
         // ===================================================================================
-        async function enterDashboard() {
+       async function enterDashboard() {
             try {
+                // 🛡️ [強制守門員] 先檢查是否已完成 MFA 綁定
+                const isProtected = await checkMfaStatus();
+                
                 // ⚙️ 【【 小白調整區 5：最高管理者信箱指定 】】
                 isAdminMode = (currentUserEmail === 'edu.fmsc@gmail.com');
+                
+                // 🌟 如果沒有綁定 MFA，強制顯示綁定面板並阻擋進入
+                if (!isProtected) {
+                    document.getElementById('login-card').classList.add('hidden');
+                    document.getElementById('main-dashboard').classList.remove('hidden');
+                    document.getElementById('mfa-setup-panel').classList.remove('hidden'); // 強制顯示綁定區
+                    
+                    // 隱藏其他頁面內容 (不讓使用者操作)
+                    document.getElementById('dynamic-form-render-engine').classList.add('hidden'); 
+                    customPopupDriver("安全警示", "為了您的帳號安全，請先完成雙重驗證 (MFA) 綁定。", "🛡️");
+                    return; // 這裡直接 return，後面程式碼不執行
+                }
+
+                // --- 只有通過守門員的人，才會執行以下正常的載入邏輯 ---
                 
                 // 刷洗畫出左側手動資訊系統按鈕
                 const submenuContainer = document.getElementById("submenu-main-info");
@@ -409,45 +426,39 @@
                 });
 
                 if (isAdminMode) {
+                    // ... (後續管理員載入邏輯保持不變) ...
                     const { data, error } = await supabaseClient.from('店經理google帳密').select('*');
                     if (error) throw error;
-                    
                     allStoresRows = data || [];
                     if(allStoresRows.length === 0) throw new Error("總部後台尚未建置任何店家列資料");
-                    
-                    // 解鎖外殼
                     document.getElementById('login-card').classList.add('hidden');
                     document.getElementById('main-dashboard').classList.remove('hidden');
                     document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
                     initSessionTimer(); 
-                    
                     document.getElementById("admin-sidebar-section").classList.remove("hidden");
                     document.getElementById("admin-switcher-zone").classList.remove("hidden");
-                    
                     const selector = document.getElementById("admin-store-selector");
                     selector.innerHTML = "";
                     allStoresRows.forEach(store => {
                         selector.innerHTML += `<option value="${store.manager_email}">🏪 ${store.store_name}</option>`;
                     });
-                    
                     loadSelectedStoreData(allStoresRows[0].manager_email);
                     handleTabSwitch('admin_report');
                 } else {
+                    // ... (後續一般店長載入邏輯保持不變) ...
                     const { data, error } = await supabaseClient.from('店經理google帳密').select('*').eq('manager_email', currentUserEmail).single();
                     if (error || !data) throw new Error("找不到此公務信箱對應之門市配置資料，拒絕放行！");
-                    
                     document.getElementById('login-card').classList.add('hidden');
                     document.getElementById('main-dashboard').classList.remove('hidden');
                     document.body.className = "bg-gray-50 min-h-screen font-sans no-select";
                     initSessionTimer(); 
-                    
                     document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
                     targetStoreEmail = currentUserEmail;
                     globalDataStore = data.content ? JSON.parse(data.content) : {};
-                    
                     renderFormEngine(window.FORMS_CONFIG[0].id); 
                 }
             } catch(e) {
+                // ... (錯誤處理邏輯保持不變) ...
                 console.error("🚨 安全連線異常，系統強行啟動退場機制：", e.message);
                 if (supabaseClient) { await supabaseClient.auth.signOut(); }
                 document.getElementById('main-dashboard').classList.add('hidden');
@@ -866,19 +877,43 @@
             if (supabaseClient) { await supabaseClient.auth.signOut(); }
             window.location.reload(); 
         });
+      // 🛡️ 強制檢查是否已完成 MFA 綁定
+async function checkMfaStatus() {
+    const { data, error } = await supabaseClient.auth.mfa.listFactors();
+    if (error) return false;
+    
+    // 檢查是否有狀態為 'verified' 的 MFA 設定
+    const verifiedFactors = (data.totp || []).filter(f => f.status === 'verified');
+    return verifiedFactors.length > 0;
+}
       // 🛡️ MFA 綁定功能
         let currentFactorId = "";
-
         async function startMfaEnroll() {
             try {
+                // 1. 自動清理機制：先檢查舊綁定並刪除
+                const { data: factors, error: listError } = await supabaseClient.auth.mfa.listFactors();
+                if (!listError && factors.totp && factors.totp.length > 0) {
+                    for (const factor of factors.totp) {
+                        await supabaseClient.auth.mfa.unenroll({ factorId: factor.id });
+                    }
+                }
+
+                // 2. 開始新註冊
                 const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
                 if (error) throw error;
+                
                 currentFactorId = data.id;
                 document.getElementById('mfa-qr-code').src = data.totp.qr_code;
                 document.getElementById('mfa-qr-container').classList.remove('hidden');
                 document.getElementById('btn-enroll').classList.add('hidden');
-                alert("復原碼 (請務必截圖保存)：" + data.totp.recovery_codes.join(", "));
-            } catch (err) { customPopupDriver("綁定失敗", err.message, "❌"); }
+                
+                // 3. 安全提示 (檢查復原碼是否存在再顯示)
+                if (data.totp && data.totp.recovery_codes) {
+                    alert("復原碼 (請務必截圖保存)：" + data.totp.recovery_codes.join(", "));
+                }
+            } catch (err) { 
+                customPopupDriver("綁定啟動失敗", err.message, "❌"); 
+            }
         }
 
         async function verifyMfaEnroll() {
@@ -886,28 +921,24 @@
             if (!code) return alert("請輸入驗證碼");
             
             try {
-                // 1. 產生驗證挑戰
                 const challenge = await supabaseClient.auth.mfa.challenge({ factorId: currentFactorId });
-                
-                // 2. 進行驗證
                 const verify = await supabaseClient.auth.mfa.verify({
-                    factorId: currentFactorId,challengeId: challenge.data.id,code: code
+                    factorId: currentFactorId, 
+                    challengeId: challenge.data.id, 
+                    code: code
                 });
                 
                 if (verify.error) throw new Error("驗證碼錯誤");
                 
-                // 3. 寫入日誌 (這一行一定要加 await，確保寫入完成)
+                // 4. 靜默記錄 (成功時不產生 Console 訊息)
                 await recordOperationLog("帳號安全：成功啟用並綁定 MFA 雙重驗證");
                 
-                // 4. 顯示成功訊息
                 customPopupDriver("綁定成功！", "以後登入系統時，請準備好手機驗證碼。", "🎉");
                 document.getElementById('mfa-qr-container').classList.add('hidden');
-                
             } catch (err) { 
-                // 綁定失敗會直接跳出視窗告訴你原因
                 customPopupDriver("綁定驗證失敗", err.message, "❌"); 
             }
-        }
+        }    
     </script>
 </body>
 </html>
