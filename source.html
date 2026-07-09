@@ -227,22 +227,20 @@
         // ===================================================================================
         // 🕵️‍♂️ 【大項功能：資安黑盒子 - 全自動推播寫入門市操作日誌表格】
         // ===================================================================================
-       async function recordOperationLog(actionDescription) {
+     async function recordOperationLog(actionDescription) {
             if (!supabaseClient) return;
             try {
-                const { error } = await supabaseClient.from('門市操作日誌').insert([
+                // 直接靜默寫入，不產生任何 Console 訊息
+                await supabaseClient.from('門市操作日誌').insert([
                     {
                         operator_email: currentUserEmail || "未登入訪客",
                         action_type: actionDescription,
                         ip_address: window.globalUserIP
                     }
                 ]);
-                
-                if (error) throw error; // 如果有錯，直接丟出，這樣你才能追蹤到真正的錯誤
-                console.log("✅ 日誌紀錄成功");
             } catch (logErr) {
-                // 這裡會顯示出正確的錯誤名稱，不會再有 "error is not defined" 的問題
-                console.error("🔒 日誌寫入失敗，原因如下:", logErr);
+                // 只有在發生嚴重錯誤時，才保留錯誤回報，方便之後維護查修
+                console.error("🔒 [系統日誌異常]:", logErr);
             }
         }
 
