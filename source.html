@@ -237,8 +237,12 @@
                         ip_address: window.globalUserIP
                     }
                 ]);
+            // --- 【關鍵修改】如果 Supabase 說不行，就丟出錯誤 ---
+                if (error) throw error; 
+                console.log("日誌成功寫入!");
             } catch (logErr) {
-                console.error("🔒 日誌寫入例外：", logErr);
+                console.error("【關鍵日誌錯誤】:", logErr);
+                throw logErr; // 讓外層知道失敗了
             }
         }
 
