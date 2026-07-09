@@ -54,6 +54,10 @@
                 <label class="block text-sm font-medium text-gray-700">登入密碼 (Password)</label>
                 <input type="password" id="password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">雙重驗證碼 (OTP - 若無綁定可留空)</label>
+                <input type="text" id="otp" placeholder="請輸入 6 位數字" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+            </div>
             <!-- 忘記密碼處理按鈕 -->
             <div class="flex justify-end">
                 <button onclick="handleForgotPassword()" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">忘記密碼？</button>
@@ -326,24 +330,66 @@
         function panelPdfActive() { return !document.getElementById('panel-pdf').classList.contains('hidden'); }
         function bindInputDirtyTracker() { isDirty = true; } 
 
-        // 🔐 登入驗證
+      // 🔐 登入驗證
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+            const otpCode = document.getElementById('otp').value.trim(); // 取得 OTP 輸入
             const btn = document.getElementById('btn-login');
+
             if (!email || !password) { customPopupDriver("提示", "請輸入完整的門市信箱與登入密碼！", "⚠️"); return; }
+            
             btn.innerText = "⏳ 正在驗證登入..."; btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
             try {
+                // 1. 原始登入邏輯
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) { 
                     customPopupDriver("登入失敗！", "您輸入的帳號或密碼有誤，請重新檢查大小寫是否正確。", "❌"); 
                     resetLoginButton(); 
+                    return;
                 } 
-                else { 
-                    currentUserEmail = data.user.email;
-                    enterDashboard(); 
+
+                // 2. [MFA 檢查哨] 檢查該帳號是否啟用了雙重驗證
+                const { data: factors, error: factorsError } = await supabaseClient.auth.mfa.listFactors();
+                if (factorsError) throw factorsError;
+                
+                const totpFactors = factors.totp || [];
+                const hasMfa = totpFactors.length > 0;
+
+                if (hasMfa) {
+                    // 如果有綁定，檢查是否輸入了 OTP
+                    if (!otpCode) {
+                        await supabaseClient.auth.signOut(); // 強制登出以防未驗證進入
+                        customPopupDriver("安全提示", "此帳號已綁定雙重驗證，請輸入 OTP 代碼！", "🔒");
+                        resetLoginButton();
+                        return;
+                    }
+                    
+                    // 執行驗證
+                    const challenge = await supabaseClient.auth.mfa.challenge({ factorId: totpFactors[0].id });
+                    const verify = await supabaseClient.auth.mfa.verify({
+                        factorId: totpFactors[0].id,
+                        challengeId: challenge.data.id,
+                        code: otpCode
+                    });
+
+                    if (verify.error) {
+                        await supabaseClient.auth.signOut();
+                        customPopupDriver("驗證失敗", "OTP 代碼錯誤，請確認 App 上的數字。", "❌");
+                        resetLoginButton();
+                        return;
+                    }
                 }
-            } catch (err) { customPopupDriver("後台連線失敗！", err.message, "🚨"); resetLoginButton(); }
+                
+                // 3. 原有成功後的邏輯
+                currentUserEmail = data.user.email;
+                enterDashboard(); 
+
+            } catch (err) { 
+                customPopupDriver("後台連線失敗！", err.message, "🚨"); 
+                resetLoginButton(); 
+            }
         });
 
         function resetLoginButton() {
