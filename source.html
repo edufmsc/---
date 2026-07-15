@@ -75,10 +75,11 @@
         <div class="w-64 bg-gray-900 text-white flex flex-col justify-between overflow-y-auto select-none" id="sidebar-panel">
             <div class="p-4 space-y-4">
                 <h1 id="welcome-title" class="text-xl font-bold tracking-wider mb-6 text-indigo-400">🏪 讀取中...</h1>
-               <div id="admin-switcher-zone" class="hidden space-y-1 mt-4">
-               <div class="text-[10px] text-gray-400 font-medium tracking-widest uppercase">切換檢視門市</div>
-                    <select id="admin-store-selector" onchange="handleAdminStoreChange()" class="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-indigo-500 transition"></select>
-               </div>
+                  <div id="admin-switcher-zone" class="hidden my-4 p-3 bg-gray-800 rounded-xl border border-gray-600 shadow-inner">
+                    <div class="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-2 ml-1">切換檢視門市</div>
+                      <select id="admin-store-selector" onchange="handleAdminStoreChange()" class="w-full p-2.5 bg-gray-900 border border-gray-500 rounded-lg text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition cursor-pointer">
+                       </select>
+                </div>
                 
                 <!-- ⏱️ 【在線倒數計時面版】 -->
                 <div class="bg-gray-800/60 border border-gray-700 rounded-lg p-2.5 text-center space-y-1">
@@ -410,7 +411,7 @@ async function logSystemError(errorType, errorMessage, context = {}) {
         // 🔐 【功能大項 11：解鎖面板與彩繪初始化（🌟 安全載入完成才允許解鎖畫面外殼）】
         // ===================================================================================
       // 📦 載入門市資料與渲染引擎 (獨立函式)
-async function loadDashboardContent() {
+    async function loadDashboardContent() {
     document.getElementById('mfa-setup-panel').classList.add('hidden');
     document.getElementById('dynamic-form-render-engine').classList.remove('hidden');
     
@@ -420,13 +421,16 @@ async function loadDashboardContent() {
     window.FORMS_CONFIG.forEach((form) => {
         submenuContainer.innerHTML += `<button id="menu-btn-${form.id}" onclick="handleTabSwitch('${form.id}')" class="form-nav-btn w-full text-left px-3 py-2 rounded text-gray-400 hover:bg-gray-800 hover:text-white text-xs flex items-center space-x-2 transition"><span>${form.icon}</span><span>${form.title}</span></button>`;
     });
-
-    if (isAdminMode) {
+        if (isAdminMode) {
         const { data, error } = await supabaseClient.from('店經理google帳密').select('*');
         if (error) throw error;
         allStoresRows = data || [];
-        document.getElementById("admin-sidebar-section").classList.remove("hidden");
+        
+        // --- 管理員視角：隱藏標題，顯示選單 ---
+        document.getElementById('welcome-title').style.display = 'none'; 
         document.getElementById("admin-switcher-zone").classList.remove("hidden");
+        document.getElementById("admin-sidebar-section").classList.remove("hidden");
+        
         const selector = document.getElementById("admin-store-selector");
         selector.innerHTML = "";
         allStoresRows.forEach(store => {
@@ -437,7 +441,12 @@ async function loadDashboardContent() {
     } else {
         const { data, error } = await supabaseClient.from('店經理google帳密').select('*').eq('manager_email', currentUserEmail).single();
         if (error || !data) throw new Error("找不到此公務信箱對應之門市配置資料");
+        
+        // --- 店長視角：顯示標題，隱藏選單 ---
         document.getElementById('welcome-title').innerText = `🏪 ${data.store_name}`;
+        document.getElementById('welcome-title').style.display = 'block';
+        document.getElementById("admin-switcher-zone").classList.add("hidden");
+        
         targetStoreEmail = currentUserEmail;
         globalDataStore = data.content ? JSON.parse(data.content) : {};
         renderFormEngine(window.FORMS_CONFIG[0].id); 
